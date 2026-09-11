@@ -1,26 +1,124 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-brand-navy: #1a2b4b;
+  --color-brand-orange: #f28c28;
+  --color-brand-terracotta: #c25e2e;
+  --color-brand-territorial: #3e7d4a;
+  --color-brand-success: #00ab6b;
+  --color-brand-bone: #f8fafc;
+  --color-brand-text: #253042;
+  --color-brand-border: #d9e1eb;
+  --color-brand-muted: #64748b;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-cormorant), ui-serif, Georgia, "Times New Roman", serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-brand-bone);
+  color: var(--color-brand-text);
+  font-family: var(--font-sans);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.urban-pattern {
+  background-color: var(--color-brand-bone);
+  background-image: url("/brand/urban-pattern.svg");
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: min(100%, 960px);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+.hero-photo {
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(26, 43, 75, 0.55) 0%,
+      rgba(26, 43, 75, 0.28) 42%,
+      rgba(26, 43, 75, 0.12) 100%
+    ),
+    url("/brand/hero.webp");
+  background-size: cover;
+  background-position: right center;
+}
+
+.abc-hero-photo {
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(248, 250, 252, 0.82) 0%,
+      rgba(248, 250, 252, 0.45) 38%,
+      rgba(248, 250, 252, 0.08) 100%
+    ),
+    url("/brand/abc-hero.webp");
+  background-size: cover;
+  background-position: right center;
+}
+
+.observatorio-hero-photo {
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(248, 250, 252, 0.9) 0%,
+      rgba(248, 250, 252, 0.55) 36%,
+      rgba(248, 250, 252, 0.08) 100%
+    ),
+    url("/brand/observatorio-hero.webp");
+  background-size: cover;
+  background-position: right center;
+}
+
+@media (max-width: 768px) {
+  .observatorio-hero-photo {
+    background-image:
+      linear-gradient(
+        180deg,
+        rgba(248, 250, 252, 0.94) 0%,
+        rgba(248, 250, 252, 0.82) 62%,
+        rgba(248, 250, 252, 0.55) 100%
+      ),
+      url("/brand/observatorio-hero.webp");
+    background-position: right top;
+  }
+}
+
+.legal-scaffold {
+  background-color: var(--color-brand-navy);
+  background-image:
+    radial-gradient(
+      ellipse 70% 50% at 100% 0%,
+      rgba(242, 140, 40, 0.16),
+      transparent 58%
+    ),
+    radial-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px),
+    radial-gradient(rgba(242, 140, 40, 0.35) 1.35px, transparent 1.35px);
+  background-size:
+    auto,
+    18px 18px,
+    54px 54px;
+  background-position:
+    0 0,
+    0 0,
+    9px 9px;
 }
