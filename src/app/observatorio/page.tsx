@@ -5,7 +5,7 @@ import { ObservatorioHero } from "@/components/observatorio/ObservatorioHero";
 import { LEAD_ARTICLE, SECONDARY_ARTICLES } from "@/lib/observatorio/content";
 
 export const metadata: Metadata = {
-  title: "Observatorio y noticias | PDUL Iribarren",
+  title: "Observatorio y noticias",
   description:
     "Noticias, análisis de coyuntura y reportes de avance del PDUL Iribarren 2026–2046: monitoreo técnico, impacto jurídico, ingeniería municipal y convocatorias de Aula Ciudad.",
 };

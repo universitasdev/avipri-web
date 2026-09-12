@@ -1,4 +1,4 @@
-import { IUS_URBANO_LOGIN_URL } from "@/lib/constants";
+import { IUS_URBANO_REGISTER_URL } from "@/lib/constants";
 
 export type NewsCategoryId = "institucional" | "doctrina" | "vuf" | "aula";
 
@@ -20,13 +20,17 @@ export type NewsArticle = {
   points: NewsPoint[];
   eventDetailsLabel?: string;
   eventDetails?: NewsPoint[];
-  cta: string;
-  href: string;
+  cta?: string;
+  href?: string;
+  image?: {
+    src: string;
+    alt: string;
+  };
 };
 
 export const OBSERVATORIO_HERO = {
   badge: "Órgano de difusión y doctrina técnica",
-  title: "Noticias, Análisis de Coyuntura y Reportes de Avance",
+  title: "Noticias, análisis de coyuntura y reportes de avance",
   subtitle:
     "Especial PDUL Barquisimeto (2026–2046). Monitoreo técnico, impacto jurídico, ingeniería municipal y convocatorias formativas de Aula Ciudad.",
 } as const;
@@ -56,8 +60,10 @@ export const LEAD_ARTICLE: NewsArticle = {
       body: 'Se instruye la digitalización de los procesos de recepción de propuestas y la aplicación del criterio "cero papel" e interoperabilidad en la sustanciación del expediente urbano.',
     },
   ],
-  cta: "Leer Artículo Completo y Descargar Copia del Decreto en PDF",
-  href: IUS_URBANO_LOGIN_URL,
+  image: {
+    src: "/brand/observatorio-lead.jpg",
+    alt: "Vista aérea de Barquisimeto y el monumento Flor de Venezuela",
+  },
 };
 
 export const SECONDARY_ARTICLES: NewsArticle[] = [
@@ -86,8 +92,6 @@ export const SECONDARY_ARTICLES: NewsArticle[] = [
         body: "El inicio del procedimiento actual da cumplimiento al espíritu de la Sentencia 928, abriendo el camino para sustituir una norma analógica obsoleta por una Ordenanza adaptada a la resiliencia y al desarrollo económico.",
       },
     ],
-    cta: "Ver Análisis Jurisprudencial y Descargar Sentencia N° 928/2018",
-    href: IUS_URBANO_LOGIN_URL,
   },
   {
     id: "microzonificacion-sismica",
@@ -114,8 +118,6 @@ export const SECONDARY_ARTICLES: NewsArticle[] = [
         body: "La propuesta doctrinaria de AVIPRI busca evolucionar las VUF tradicionales (Arts. 86 y 87 LOOU) hacia un modelo dinámico donde la densidad y los retiros (amortiguación cinética) se ajusten a la capacidad real de los servicios y la seguridad estructural.",
       },
     ],
-    cta: "Leer Informe de Ingeniería Legal y Ver Mapas de Riesgo",
-    href: IUS_URBANO_LOGIN_URL,
   },
   {
     id: "seminario-aula-ciudad",
@@ -159,6 +161,6 @@ export const SECONDARY_ARTICLES: NewsArticle[] = [
       },
     ],
     cta: "Inscribirme Gratis en el Seminario Web de Aula Ciudad",
-    href: IUS_URBANO_LOGIN_URL,
+    href: IUS_URBANO_REGISTER_URL,
   },
 ];

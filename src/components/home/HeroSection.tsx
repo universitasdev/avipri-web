@@ -1,6 +1,7 @@
-import { faNewspaper, faPenToSquare } from "@fortawesome/free-solid-svg-icons";
+import { faNewspaper, faRobot } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
+import { IUS_URBANO_REGISTER_URL } from "@/lib/constants";
 
 export function HeroSection() {
   return (
@@ -8,6 +9,7 @@ export function HeroSection() {
       id="inicio"
       className="hero-photo relative overflow-hidden bg-brand-navy bg-cover bg-center pb-28 pt-20 lg:pb-40 lg:pt-32"
     >
+      <div className="hero-photo-overlay pointer-events-none absolute inset-0 z-[1]" aria-hidden="true" />
       <div className="relative z-10 mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
         <span className="mb-6 inline-block rounded-full border border-brand-terracotta/50 bg-brand-terracotta/20 px-3 py-1 text-sm font-semibold tracking-wide text-brand-orange backdrop-blur-sm">
           Barquisimeto 2026–2046
@@ -27,15 +29,17 @@ export function HeroSection() {
           >
             <FontAwesomeIcon icon={faNewspaper} /> Observatorio PDUL
           </Link>
-          <Link
-            href="#registro"
+          <a
+            href={IUS_URBANO_REGISTER_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-8 py-3.5 font-medium text-brand-navy shadow-lg transition-all hover:-translate-y-1 hover:bg-slate-100 sm:w-auto"
           >
-            <FontAwesomeIcon icon={faPenToSquare} /> Registro de participación
-          </Link>
+            <FontAwesomeIcon icon={faRobot} /> Consulta IUS Urbano
+          </a>
         </div>
       </div>
-      <div className="absolute bottom-0 left-0 w-full rotate-180 overflow-hidden leading-none">
+      <div className="absolute bottom-0 left-0 z-10 w-full rotate-180 overflow-hidden leading-none">
         <svg
           className="relative block h-[50px] w-full"
           xmlns="http://www.w3.org/2000/svg"

@@ -60,7 +60,7 @@ export function NewsGrid({ articles }: { articles: NewsArticle[] }) {
                   {article.lead}
                 </p>
               ) : null}
-              <div className="space-y-3">
+              <div className="mt-auto space-y-3">
                 <PointsBox label={article.pointsLabel} points={article.points} />
                 {article.eventDetails ? (
                   <PointsBox
@@ -70,16 +70,18 @@ export function NewsGrid({ articles }: { articles: NewsArticle[] }) {
                 ) : null}
               </div>
             </div>
-            <div className="px-6 pb-6 pt-0">
-              <a
-                href={article.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-terracotta hover:text-orange-800"
-              >
-                {article.cta} ➔
-              </a>
-            </div>
+            {article.cta && article.href ? (
+              <div className="px-6 pb-6 pt-0">
+                <a
+                  href={article.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-terracotta hover:text-orange-800"
+                >
+                  {article.cta} ➔
+                </a>
+              </div>
+            ) : null}
           </article>
         );
       })}

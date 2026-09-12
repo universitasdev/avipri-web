@@ -5,6 +5,7 @@ import {
   faTwitter,
 } from "@fortawesome/free-brands-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import Image from "next/image";
 import Link from "next/link";
 import { IUS_URBANO_LOGIN_URL, IUS_URBANO_URL } from "@/lib/constants";
 
@@ -12,6 +13,25 @@ export function SiteFooter() {
   return (
     <footer className="mt-auto border-t-4 border-brand-terracotta bg-brand-navy pb-8 pt-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-10 flex flex-wrap items-center gap-5 sm:gap-8">
+          <Image
+            src="/brand/avipri.png"
+            alt="AVIPRI — Asociación Civil Venezolana Instituto de Promoción Integral"
+            width={217}
+            height={72}
+            className="h-11 w-auto sm:h-14"
+            unoptimized
+          />
+          <div className="h-10 w-px bg-white/30" />
+          <Image
+            src="/brand/universitas-legal-white.png"
+            alt="Universitas Legal"
+            width={180}
+            height={57}
+            className="h-10 w-auto sm:h-12"
+          />
+        </div>
+
         <div className="mb-12 grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div>
             <h4 className="mb-4 font-bold text-white">Institucional</h4>

@@ -21,30 +21,22 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-brand-border bg-white shadow-sm">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3 sm:gap-6">
+        <div className="flex items-center pl-3 sm:pl-6 lg:pl-10">
           <Link
             href="/"
             className="flex items-center"
             onClick={() => setOpen(false)}
-            aria-label="Inicio AVIPRI"
+            aria-label="Inicio IUS Urbano"
           >
             <Image
-              src="/brand/avipri.png"
-              alt="AVIPRI — Asociación Civil Venezolana Instituto de Promoción Integral"
-              width={180}
-              height={58}
+              src="/brand/ius-urbano.png"
+              alt="IUS Urbano"
+              width={220}
+              height={79}
               className="h-10 w-auto sm:h-12"
               priority
             />
           </Link>
-          <div className="hidden h-10 w-px bg-brand-border sm:block" />
-          <Image
-            src="/brand/universitas-legal.png"
-            alt="Universitas Legal"
-            width={160}
-            height={51}
-            className="hidden h-9 w-auto sm:block"
-          />
         </div>
 
         <nav className="hidden items-center gap-8 lg:flex">
@@ -99,13 +91,6 @@ export function SiteHeader() {
       {open ? (
         <div className="absolute w-full border-t border-brand-border bg-white shadow-lg lg:hidden">
           <div className="flex flex-col space-y-3 px-4 pb-6 pt-2">
-            <Image
-              src="/brand/universitas-legal.png"
-              alt="Universitas Legal"
-              width={140}
-              height={45}
-              className="mb-1 h-8 w-auto sm:hidden"
-            />
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}

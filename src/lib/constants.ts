@@ -1,5 +1,7 @@
 export const IUS_URBANO_URL = "https://iusurbano.universitas.legal";
 export const IUS_URBANO_LOGIN_URL = "https://iusurbano.universitas.legal/login";
+export const IUS_URBANO_REGISTER_URL =
+  "https://iusurbano.universitas.legal/register";
 export const WHATSAPP_URL =
   "https://wa.me/584145253310?text=" +
   encodeURIComponent(

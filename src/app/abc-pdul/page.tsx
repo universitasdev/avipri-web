@@ -9,7 +9,7 @@ import { ProcedimientoSection } from "@/components/abc/ProcedimientoSection";
 import { TriadaSection } from "@/components/abc/TriadaSection";
 
 export const metadata: Metadata = {
-  title: "El ABC del PDUL | PDUL Iribarren",
+  title: "El ABC del PDUL",
   description:
     "Qué es el Plan de Desarrollo Urbano Local de Iribarren, su triada legal, el procedimiento de 24 meses, los estudios técnicos y las preguntas frecuentes.",
 };

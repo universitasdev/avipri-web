@@ -1,6 +1,6 @@
 import { HeroSection } from "@/components/home/HeroSection";
 import { ImpactSection } from "@/components/home/ImpactSection";
-import { RegistrationSection } from "@/components/home/RegistrationSection";
+import { IusUrbanoSection } from "@/components/home/IusUrbanoSection";
 import { StatusTracker } from "@/components/home/StatusTracker";
 
 export default function Home() {
@@ -9,7 +9,7 @@ export default function Home() {
       <HeroSection />
       <StatusTracker />
       <ImpactSection />
-      <RegistrationSection />
+      <IusUrbanoSection />
     </>
   );
 }

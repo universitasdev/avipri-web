@@ -62,19 +62,19 @@ export const TRIAD = [
   },
   {
     number: "2",
-    title: "La Ordenanza de zonificación",
-    subtitle: "Instrumento coercitivo",
-    body: "El cuerpo legal aprobado por el Concejo Municipal que traduce el plan en normas jurídicas de obligatorio cumplimiento para la administración y los ciudadanos.",
-    content:
-      "Delimita las zonas de la ciudad y fija las Variables Urbanas Fundamentales (VUF) parcela por parcela: usos permitidos (residencial, comercial, industrial), densidades de población, retiros legales de frente, lateral y fondo, porcentajes de ubicación/construcción y alturas máximas.",
-  },
-  {
-    number: "3",
     title: "El Programa de Actuaciones Urbanas (PAU)",
     subtitle: "Plan de inversión e infraestructura",
     body: "El catálogo operativo que programa en el corto (1–3 años), mediano (4–10 años) y largo plazo (11–20 años) las obras e intervenciones públicas necesarias para viabilizar el desarrollo de la ciudad.",
     content:
       "Fichas de proyectos priorizados para ampliación de avenidas, construcción de colectores de cloacas, subestaciones eléctricas, parques y equipamientos educativos y asistenciales.",
+  },
+  {
+    number: "3",
+    title: "La Ordenanza del plan",
+    subtitle: "Instrumento coercitivo",
+    body: "El cuerpo legal aprobado por el Concejo Municipal que traduce el plan en normas jurídicas de obligatorio cumplimiento para la administración y los ciudadanos.",
+    content:
+      "Delimita las zonas de la ciudad y fija las Variables Urbanas Fundamentales (VUF) parcela por parcela: usos permitidos (residencial, comercial, industrial), densidades de población, retiros legales de frente, lateral y fondo, porcentajes de ubicación/construcción y alturas máximas.",
   },
 ] as const;
 

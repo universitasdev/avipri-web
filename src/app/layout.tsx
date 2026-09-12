@@ -20,7 +20,11 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "PDUL Iribarren | AVIPRI",
+  metadataBase: new URL("https://pdul.online"),
+  title: {
+    default: "PDUL Online",
+    template: "%s | PDUL Online",
+  },
   description:
     "Portal informativo, observatorio autónomo y plataforma de participación ciudadana para el Plan de Desarrollo Urbano Local del Municipio Iribarren.",
 };
