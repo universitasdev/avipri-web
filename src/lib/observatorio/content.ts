@@ -1,5 +1,3 @@
-import { IUS_URBANO_REGISTER_URL } from "@/lib/constants";
-
 export type NewsCategoryId = "institucional" | "doctrina" | "vuf" | "aula";
 
 export type NewsPoint = {
@@ -120,47 +118,50 @@ export const SECONDARY_ARTICLES: NewsArticle[] = [
     ],
   },
   {
-    id: "seminario-aula-ciudad",
+    id: "antifragilidad-aula-ciudad",
     category: "aula",
     categoryLabel: "Aula Ciudad",
-    date: "1 de septiembre de 2026",
-    dateShort: "1 Sep 2026",
+    date: "12 de septiembre de 2026",
+    dateShort: "12 Sep 2026",
     title:
-      'Próximo Seminario Web: "Variables Urbanas Fundamentales, Afectaciones Viales y Consulta Pública en el PDUL". ¡Inscripción gratuita!',
+      "Del Principio de Precaución a la Antifragilidad Legal en el Derecho Urbanístico",
     subtitle:
-      "Especialistas de AVIPRI, Universitas Legal y la UCLA analizan los derechos ciudadanos, los trámites DPCU y los mecanismos de participación.",
-    lead: 'En el marco del ciclo de conferencias de la plataforma Aula Ciudad, la Fundación Universitas y AVIPRI invitan a ingenieros, arquitectos, abogados, comerciantes, promotores inmobiliarios y voceros comunitarios a la Masterclass gratuita: "Variables Urbanas Fundamentales, Afectaciones Viales y Consulta Pública en Iribarren".',
-    pointsLabel: "Ejes temáticos de la jornada",
+      "AVIPRI y Universitas Legal invitan a la videoconferencia magistral sobre el paso del urbanismo predictivo tradicional a un modelo de regulación adaptativa apoyado en Smart Cities y Gemelos Digitales.",
+    pointsLabel: "Ejes Temáticos del Encuentro",
     points: [
       {
-        title: "Permisología DPCU y VUF",
-        body: "Cómo solicitar la Consulta Preliminar y la Constancia de Adecuación a las VUF sin caer en dilaciones burocráticas.",
+        title: "Límites de la Planificación Clásica",
+        body: "Por qué los planes estáticos fallan ante imprevistos (Cisnes Negros) y por qué la resiliencia pasiva resulta insuficiente frente al desorden.",
       },
       {
-        title: "Afectaciones Viales y Reservas de Suelo",
-        body: "Alcance jurídico de las franjas de terreno reservadas para futuras ampliaciones de avenidas y su impacto en la propiedad privada.",
+        title: "Antifragilidad Legal",
+        body: "El paso hacia un marco normativo que aprende de la volatilidad, manteniendo la precaución estricta en zonas de riesgo sísmico e hídrico y abriendo flexibilidad en el resto del tejido urbano.",
       },
       {
-        title: "Cómo participar en la Consulta Pública de 60 Días",
-        body: "Explicación práctica sobre cómo presentar alegatos y observaciones mediante el formulario web con acuse digital de recibo (Art. 38 LOOU & Art. 140 LOAP).",
+        title: "Smart Cities & Gemelos Digitales",
+        body: "Cómo la Inteligencia Artificial y la simulación digital permiten testear las normas urbanas antes de su promulgación.",
+      },
+      {
+        title: "Nuevas Herramientas",
+        body: "Auditorías de fragilidad normativa, experimentación táctica (regulatory sandboxes) y normas dinámicas ajustadas a resultados reales (payoff).",
       },
     ],
-    eventDetailsLabel: "Detalles del evento",
+    eventDetailsLabel: "Ficha del Evento",
     eventDetails: [
       {
-        title: "Fecha",
-        body: "Jueves, 24 de septiembre de 2026.",
+        title: "Fecha y Hora",
+        body: "Viernes, 09 de octubre de 2026 — 11:00 AM (VET).",
       },
       {
-        title: "Hora",
-        body: "5:00 PM (Hora de Venezuela).",
+        title: "Ponentes",
+        body: "Abog. Crismary Álvarez Pereira (AVIPRI) y Dr. Julio Pérez.",
       },
       {
         title: "Modalidad",
-        body: "Transmisión en vivo vía YouTube Live / Zoom (Acceso abierto).",
+        body: "Transmisión Online (Acceso gratuito previa inscripción).",
       },
     ],
-    cta: "Inscribirme Gratis en el Seminario Web de Aula Ciudad",
-    href: IUS_URBANO_REGISTER_URL,
+    cta: "Inscribirme a la Videoconferencia del 09 de Octubre",
+    href: "https://universitas.myflodesk.com/antifragilidad-principio-normativo-derecho-urbanistico-global",
   },
 ];
