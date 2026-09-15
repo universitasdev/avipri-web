@@ -6,7 +6,12 @@ const STEPS = [
   { label: "Aprobación Plan de trabajo", status: "En curso", state: "active" },
   { label: "Diagnóstico", status: "Pendiente", state: "upcoming" },
   { label: "Formulación", status: "Pendiente", state: "upcoming" },
-  { label: "Consulta Pública (60 días)", status: "Próximamente", state: "upcoming" },
+  {
+    label: "Consulta Pública",
+    sublabel: "(60 días)",
+    status: "Próximamente",
+    state: "upcoming",
+  },
   { label: "Aprobación Cámara", status: "Pendiente", state: "upcoming" },
   { label: "Vigencia", status: "Futuro", state: "upcoming" },
 ] as const;
@@ -23,7 +28,7 @@ export function StatusTracker() {
             Termómetro del Proceso
           </h2>
           <p className="mt-1 text-sm text-brand-muted">
-            Sigue en tiempo real el avance de la ordenanza
+            Sigue en tiempo real el avance del PDUL
           </p>
         </div>
 
@@ -68,6 +73,12 @@ export function StatusTracker() {
                     }`}
                   >
                     {step.label}
+                    {"sublabel" in step ? (
+                      <>
+                        <br />
+                        {step.sublabel}
+                      </>
+                    ) : null}
                   </div>
                   <div
                     className={`mt-0.5 text-[10px] font-medium sm:text-[11px] ${
