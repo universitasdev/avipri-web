@@ -37,12 +37,12 @@ export const LEAD_ARTICLE: NewsArticle = {
   id: "decreto-inicio-pdul",
   category: "institucional",
   categoryLabel: "Análisis Institucional",
-  date: "11 de septiembre de 2026",
-  dateShort: "11 Sep 2026",
+  date: "14 de septiembre de 2026",
+  dateShort: "14 Sep 2026",
   title:
     "Alcalde Yanis Agüero promulga el Decreto de Inicio del PDUL Iribarren: Análisis del marco de garantías para la inversión y el desarrollo social",
   subtitle:
-    "El Decreto Municipal abre formalmente la hoja de ruta participativa que dotará a Barquisimeto de un plan ordenador a 20 años, superando una parálisis normativa de casi una década.",
+    "El Decreto Municipal de la Alcaldía de Iribarren N° 48-2026, abre formalmente la hoja de ruta participativa que dotará a Barquisimeto de un plan ordenador a 20 años, superando una parálisis normativa de casi una década.",
   lead: "En un acto institucional que convoca a las cámaras empresariales, gremios técnicos, universidades y el Poder Popular, el Alcalde del Municipio Iribarren, Yanis Enrique Agüero, ha firmado y promulgado el Decreto de Inicio del procedimiento para la elaboración del nuevo Plan de Desarrollo Urbano Local (PDUL). Este acto administrativo activa las fases de diagnóstico, concertación social y formulación de la futura Ordenanza que regirá el crecimiento de Barquisimeto hasta el año 2046.",
   points: [
     {
@@ -59,8 +59,8 @@ export const LEAD_ARTICLE: NewsArticle = {
     },
   ],
   image: {
-    src: "/brand/observatorio-lead.jpg",
-    alt: "Vista aérea de Barquisimeto y el monumento Flor de Venezuela",
+    src: "/brand/observatorio-lead-v2.jpg",
+    alt: "Imagen de la promulgación del Decreto de Inicio del PDUL Iribarren",
   },
 };
 

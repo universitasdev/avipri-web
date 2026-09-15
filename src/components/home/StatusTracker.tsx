@@ -2,8 +2,10 @@ import { faCheck, faCircleInfo } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const STEPS = [
-  { label: "Diagnóstico", status: "Completado", state: "done" },
-  { label: "Formulación", status: "En curso", state: "active" },
+  { label: "Decreto Alcalde", status: "Completado", state: "done" },
+  { label: "Aprobación Plan de trabajo", status: "En curso", state: "active" },
+  { label: "Diagnóstico", status: "Pendiente", state: "upcoming" },
+  { label: "Formulación", status: "Pendiente", state: "upcoming" },
   { label: "Consulta Pública (60 días)", status: "Próximamente", state: "upcoming" },
   { label: "Aprobación Cámara", status: "Pendiente", state: "upcoming" },
   { label: "Vigencia", status: "Futuro", state: "upcoming" },
@@ -25,26 +27,22 @@ export function StatusTracker() {
           </p>
         </div>
 
-        <div className="relative">
-          <div className="absolute top-1/2 left-0 z-0 hidden h-1 w-full -translate-y-1/2 rounded bg-slate-200 md:block" />
-          <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:gap-0">
+        <div className="relative mx-auto max-w-4xl">
+          <div className="absolute top-4 left-[6%] right-[6%] z-0 hidden h-0.5 -translate-y-1/2 rounded bg-slate-200 md:block" />
+          <div className="relative z-10 flex flex-col justify-between gap-5 md:flex-row md:gap-0">
             {STEPS.map((step, index) => (
               <div
                 key={step.label}
-                className={`group flex w-full items-center gap-4 text-left md:w-1/5 md:flex-col md:gap-2 md:text-center ${
+                className={`group flex w-full min-w-0 items-center gap-3 text-left md:w-auto md:flex-1 md:flex-col md:gap-1.5 md:px-0.5 md:text-center ${
                   step.state === "upcoming" ? "opacity-60" : ""
                 }`}
               >
-                <div
-                  className={`relative h-10 w-10 shrink-0 ${
-                    step.state === "active" ? "" : ""
-                  }`}
-                >
+                <div className="relative h-8 w-8 shrink-0">
                   {step.state === "active" ? (
                     <div className="absolute inset-0 animate-ping rounded-full bg-brand-terracotta opacity-75" />
                   ) : null}
                   <div
-                    className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-white shadow-md ${
+                    className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-white shadow-md ${
                       step.state === "done"
                         ? "bg-brand-success text-white"
                         : step.state === "active"
@@ -53,15 +51,15 @@ export function StatusTracker() {
                     }`}
                   >
                     {step.state === "done" ? (
-                      <FontAwesomeIcon icon={faCheck} className="text-sm" />
+                      <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
                     ) : (
-                      <span className="text-sm font-bold">{index + 1}</span>
+                      <span className="text-xs font-bold">{index + 1}</span>
                     )}
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0 md:w-full">
                   <div
-                    className={`text-sm font-bold ${
+                    className={`text-[11px] leading-tight font-bold sm:text-xs ${
                       step.state === "active"
                         ? "text-brand-navy"
                         : step.state === "done"
@@ -72,7 +70,7 @@ export function StatusTracker() {
                     {step.label}
                   </div>
                   <div
-                    className={`text-xs font-medium ${
+                    className={`mt-0.5 text-[10px] font-medium sm:text-[11px] ${
                       step.state === "done"
                         ? "text-brand-success"
                         : step.state === "active"
@@ -95,10 +93,10 @@ export function StatusTracker() {
           />
           <p className="text-sm text-slate-600">
             <strong className="text-brand-navy">
-              Fase 2: Formulación técnica y armonización institucional.
+              Fase 2: Aprobación del Plan de trabajo.
             </strong>{" "}
-            Transparencia en tiempo real sobre el avance de la ordenanza que
-            definirá el futuro urbano de Barquisimeto.
+            DPCU diseña un plan de trabajo, cronograma y presupuesto del
+            proyecto.
           </p>
         </div>
       </div>

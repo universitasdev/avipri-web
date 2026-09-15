@@ -98,7 +98,7 @@ body {
       rgba(248, 250, 252, 0.45) 38%,
       rgba(248, 250, 252, 0.08) 100%
     ),
-    url("/brand/abc-hero.webp");
+    url("/brand/abc-hero.png");
   background-size: cover;
   background-position: right center;
 }
@@ -111,7 +111,7 @@ body {
       rgba(248, 250, 252, 0.55) 36%,
       rgba(248, 250, 252, 0.08) 100%
     ),
-    url("/brand/observatorio-hero.webp");
+    url("/brand/observatorio-hero.png");
   background-size: cover;
   background-position: right center;
 }
@@ -125,7 +125,7 @@ body {
         rgba(248, 250, 252, 0.82) 62%,
         rgba(248, 250, 252, 0.55) 100%
       ),
-      url("/brand/observatorio-hero.webp");
+      url("/brand/observatorio-hero.png");
     background-position: right top;
   }
 }

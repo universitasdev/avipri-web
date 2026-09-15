@@ -27,13 +27,9 @@ export function AbcHero() {
           El ABC del PDUL
         </p>
         <h1 className="mt-3 font-serif text-3xl font-bold leading-tight text-brand-navy drop-shadow-sm sm:text-4xl lg:text-5xl">
-          Comprendiendo el plan que transforma a Barquisimeto
+          Comprendiendo cómo un Plan de Desarrollo Urbano Local (PDUL)
+          transforma a una ciudad.
         </h1>
-        <p className="mx-auto mt-4 max-w-3xl text-lg text-slate-600">
-          Interfaz pedagógica de libre acceso para entender el PDUL Iribarren
-          2026–2046: su fundamento legal, sus tres instrumentos y el camino
-          hasta la Ordenanza.
-        </p>
         <nav
           aria-label="Navegación rápida del ABC"
           className="mt-8 flex flex-wrap justify-center gap-3"

@@ -11,16 +11,13 @@ export function HeroSection() {
     >
       <div className="hero-photo-overlay pointer-events-none absolute inset-0 z-[1]" aria-hidden="true" />
       <div className="relative z-10 mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
-        <span className="mb-6 inline-block rounded-full border border-brand-terracotta/50 bg-brand-terracotta/20 px-3 py-1 text-sm font-semibold tracking-wide text-brand-orange backdrop-blur-sm">
-          Barquisimeto 2026–2046
-        </span>
         <h1 className="mb-6 font-serif text-4xl font-bold leading-tight text-white drop-shadow-lg sm:text-5xl lg:text-6xl">
           Transformando el territorio con inteligencia legal y urbanística.
         </h1>
         <p className="mx-auto mb-10 max-w-3xl text-lg font-light text-slate-300 sm:text-xl">
           Portal informativo, observatorio autónomo y plataforma de
-          participación ciudadana para el nuevo Plan de Desarrollo Urbano Local
-          (PDUL) del Municipio Iribarren (Barquisimeto 2026–2046).
+          participación ciudadana para la Planificación del Desarrollo Urbano
+          Local (PDUL) en Venezuela.
         </p>
         <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Link
