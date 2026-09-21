@@ -16,17 +16,22 @@ function parseDatabaseUrl(url: string) {
   };
 }
 
-function getGcpCredentials() {
+async function createCloudSqlAuth() {
   const client_email = process.env.GCS_CLIENT_EMAIL?.trim();
   const private_key = process.env.GCS_PRIVATE_KEY?.replace(/\\n/g, "\n");
   if (!client_email || !private_key) return undefined;
-  return {
-    client_email,
-    private_key,
-    ...(process.env.GCS_PROJECT_ID
-      ? { project_id: process.env.GCS_PROJECT_ID.trim() }
-      : {}),
-  };
+
+  const { GoogleAuth } = await import("google-auth-library");
+  return new GoogleAuth({
+    credentials: {
+      client_email,
+      private_key,
+      ...(process.env.GCS_PROJECT_ID
+        ? { project_id: process.env.GCS_PROJECT_ID.trim() }
+        : {}),
+    },
+    scopes: ["https://www.googleapis.com/auth/sqlservice.admin"],
+  });
 }
 
 async function createPrismaClient() {
@@ -51,8 +56,8 @@ async function createPrismaClient() {
   const { Pool } = await import("pg");
   const { PrismaPg } = await import("@prisma/adapter-pg");
 
-  const credentials = getGcpCredentials();
-  const connector = new Connector(credentials ? { credentials } : undefined);
+  const auth = await createCloudSqlAuth();
+  const connector = new Connector(auth ? { auth } : undefined);
   const clientOpts = await connector.getOptions({
     instanceConnectionName,
     ipType: IpAddressTypes.PUBLIC,
