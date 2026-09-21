@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const gcsBucket = process.env.GCS_BUCKET?.trim();
+
 const nextConfig: NextConfig = {
   images: {
     qualities: [75, 90],
@@ -15,7 +17,7 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "storage.googleapis.com",
-        pathname: "/avipri-pdul-imagenes/**",
+        pathname: gcsBucket ? `/${gcsBucket}/**` : "/**",
       },
     ],
   },

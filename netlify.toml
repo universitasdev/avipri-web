@@ -3,9 +3,11 @@
   publish = ".next"
 
 [build.environment]
-  NODE_VERSION = "20"
-  # Prisma necesita el cliente generado en el build
+  NODE_VERSION = "22"
   NETLIFY_NEXT_PLUGIN_SKIP = "false"
+  # Evita fallos por valores no sensibles / caché de build que coinciden con env
+  SECRETS_SCAN_OMIT_KEYS = "GCS_BUCKET,GCS_PROJECT_ID,INSTANCE_CONNECTION_NAME,PLAYLIST_ID,ADMIN_EMAIL,ADMIN_NAME"
+  SECRETS_SCAN_OMIT_PATHS = ".env.example,.next/cache,.netlify/.next/cache"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
