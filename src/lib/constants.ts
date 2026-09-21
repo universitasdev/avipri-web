@@ -51,6 +51,7 @@ export const NAV_LINKS = [
   { href: "/", label: "Inicio" },
   { href: "/abc-pdul", label: "ABC del PDUL" },
   { href: "/observatorio", label: "Observatorio y noticias" },
+  { href: "/aula-ciudad", label: "Aula Ciudad" },
 ] as const;
 
 export const SITE_SECTIONS = [

@@ -34,6 +34,21 @@ yarn-error.log*
 .env*
 !.env.example
 
+# GCP service account keys (nunca subir al repo)
+*-key.json
+gcs-sa.json
+service-account*.json
+
+# sqlite local
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-wal
+prisma/*.db-shm
+
+# uploaded news images
+/public/uploads/news/*
+!/public/uploads/news/.gitkeep
+
 # local registration fallback
 .data/
 

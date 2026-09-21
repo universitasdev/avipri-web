@@ -39,7 +39,7 @@ export function SiteHeader() {
           </Link>
         </div>
 
-        <nav className="hidden items-center gap-8 lg:flex">
+        <nav className="hidden items-center gap-6 xl:gap-8 lg:flex">
           {NAV_LINKS.map((link) => {
             const path = link.href.split("#")[0] || "/";
             const active =

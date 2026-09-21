@@ -12,6 +12,20 @@
   --color-brand-muted: #64748b;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-cormorant), ui-serif, Georgia, "Times New Roman", serif;
+  --color-background: #ffffff;
+  --color-foreground: #253042;
+  --color-primary: #1a2b4b;
+  --color-primary-foreground: #ffffff;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #253042;
+  --color-accent: #f1f5f9;
+  --color-accent-foreground: #1a2b4b;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-border: #d9e1eb;
+  --color-input: #d9e1eb;
+  --color-ring: #1a2b4b;
+  --color-destructive: #dc2626;
 }
 
 html {

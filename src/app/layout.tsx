@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Cormorant_Garamond, Inter } from "next/font/google";
-import { SiteShell } from "@/components/layout/SiteShell";
 import "@/lib/fontawesome";
 import "./globals.css";
 
@@ -36,9 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${inter.variable} ${cormorant.variable} h-full`}>
-      <body className="min-h-full">
-        <SiteShell>{children}</SiteShell>
-      </body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }

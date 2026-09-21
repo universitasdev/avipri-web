@@ -7,6 +7,7 @@ import { MicrolearningSection } from "@/components/abc/MicrolearningSection";
 import { MitosSection } from "@/components/abc/MitosSection";
 import { ProcedimientoSection } from "@/components/abc/ProcedimientoSection";
 import { TriadaSection } from "@/components/abc/TriadaSection";
+import { StatusTracker } from "@/components/home/StatusTracker";
 
 export const metadata: Metadata = {
   title: "El ABC del PDUL",
@@ -18,6 +19,7 @@ export default function AbcPdulPage() {
   return (
     <div className="urban-pattern">
       <AbcHero />
+      <StatusTracker />
       <FundamentosSection />
       <TriadaSection />
       <ProcedimientoSection />

@@ -36,7 +36,7 @@ export function SiteFooter() {
             <h4 className="mb-4 font-bold text-white">PDUL Iribarren</h4>
             <ul className="space-y-2 text-sm text-slate-400">
             <li>
-              <Link href="/#termometro" className="hover:text-brand-orange">
+              <Link href="/abc-pdul#termometro" className="hover:text-brand-orange">
                 Termómetro de avance
               </Link>
             </li>
@@ -48,6 +48,11 @@ export function SiteFooter() {
             <li>
               <Link href="/observatorio" className="hover:text-brand-orange">
                 Noticiero
+              </Link>
+            </li>
+            <li>
+              <Link href="/aula-ciudad" className="hover:text-brand-orange">
+                Aula Ciudad
               </Link>
             </li>
             </ul>

@@ -1,26 +1,14 @@
 import { faCheck, faCircleInfo } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { getThermometer } from "@/lib/thermometer/getThermometer";
 
-const STEPS = [
-  { label: "Decreto Alcalde", status: "Completado", state: "done" },
-  { label: "Aprobación Plan de trabajo", status: "En curso", state: "active" },
-  { label: "Diagnóstico", status: "Pendiente", state: "upcoming" },
-  { label: "Formulación", status: "Pendiente", state: "upcoming" },
-  {
-    label: "Consulta Pública",
-    sublabel: "(60 días)",
-    status: "Próximamente",
-    state: "upcoming",
-  },
-  { label: "Aprobación Cámara", status: "Pendiente", state: "upcoming" },
-  { label: "Vigencia", status: "Futuro", state: "upcoming" },
-] as const;
+export async function StatusTracker() {
+  const thermometer = await getThermometer();
 
-export function StatusTracker() {
   return (
     <section
       id="termometro"
-      className="relative z-20 mx-auto mb-20 -mt-16 max-w-6xl px-4 sm:px-6 lg:px-8"
+      className="relative z-20 mx-auto mb-10 -mt-16 max-w-6xl scroll-mt-28 px-4 sm:px-6 lg:px-8"
     >
       <div className="glass-panel rounded-2xl border border-brand-border p-6 shadow-xl sm:p-10">
         <div className="mb-8 text-center">
@@ -35,9 +23,9 @@ export function StatusTracker() {
         <div className="relative mx-auto max-w-4xl">
           <div className="absolute top-4 left-[6%] right-[6%] z-0 hidden h-0.5 -translate-y-1/2 rounded bg-slate-200 md:block" />
           <div className="relative z-10 flex flex-col justify-between gap-5 md:flex-row md:gap-0">
-            {STEPS.map((step, index) => (
+            {thermometer.steps.map((step, index) => (
               <div
-                key={step.label}
+                key={step.key}
                 className={`group flex w-full min-w-0 items-center gap-3 text-left md:w-auto md:flex-1 md:flex-col md:gap-1.5 md:px-0.5 md:text-center ${
                   step.state === "upcoming" ? "opacity-60" : ""
                 }`}
@@ -73,7 +61,7 @@ export function StatusTracker() {
                     }`}
                   >
                     {step.label}
-                    {"sublabel" in step ? (
+                    {step.sublabel ? (
                       <>
                         <br />
                         {step.sublabel}
@@ -103,11 +91,8 @@ export function StatusTracker() {
             className="mt-1 text-brand-orange"
           />
           <p className="text-sm text-slate-600">
-            <strong className="text-brand-navy">
-              Fase 2: Aprobación del Plan de trabajo.
-            </strong>{" "}
-            DPCU diseña un plan de trabajo, cronograma y presupuesto del
-            proyecto.
+            <strong className="text-brand-navy">{thermometer.activeTitle}</strong>{" "}
+            {thermometer.activeDescription}
           </p>
         </div>
       </div>

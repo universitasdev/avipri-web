@@ -15,7 +15,7 @@ export function FundamentosSection() {
   return (
     <section
       id="fundamentos"
-      className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8"
+      className="mx-auto max-w-7xl scroll-mt-24 px-4 pb-16 pt-6 sm:px-6 sm:pt-8 lg:px-8"
     >
       <header className="mx-auto mb-10 max-w-4xl text-center">
         <h2 className="font-serif text-3xl font-bold text-brand-navy sm:text-4xl">

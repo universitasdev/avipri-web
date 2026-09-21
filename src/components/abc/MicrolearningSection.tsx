@@ -1,58 +1,34 @@
-import { faPlay } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import Image from "next/image";
-import { Card } from "@/components/ui/Card";
-import { VIDEOS } from "@/lib/abc/content";
+import Link from "next/link";
+import { VideoGrid } from "@/components/aula-ciudad/VideoGrid";
+import { getPlaylistVideosSafe } from "@/lib/youtube/playlist";
+import { VIDEOS, mapYoutubeToVideoItem } from "@/lib/aula-ciudad/content";
 
-export function MicrolearningSection() {
+export async function MicrolearningSection() {
+  const { videos } = await getPlaylistVideosSafe();
+  const preview =
+    videos.length > 0
+      ? videos.slice(0, 3).map(mapYoutubeToVideoItem)
+      : VIDEOS.slice(0, 3);
+
   return (
     <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-      <h2 className="mb-8 text-center font-serif text-3xl font-bold text-brand-navy">
-        Centro de píldoras audiovisuales
-      </h2>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {VIDEOS.map((video) => (
-          <Card key={video.id} className="flex h-full flex-col overflow-hidden p-0">
-            <a
-              href={video.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="relative block aspect-video overflow-hidden bg-brand-navy"
-              aria-label={`Reproducir: ${video.title}`}
-            >
-              <Image
-                src={`https://img.youtube.com/vi/${video.id}/hqdefault.jpg`}
-                alt=""
-                fill
-                sizes="(min-width: 768px) 33vw, 100vw"
-                className="object-cover opacity-80"
-              />
-              <span className="absolute inset-0 bg-gradient-to-t from-brand-navy/50 to-transparent" />
-              <span className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-brand-terracotta text-white shadow-lg transition-transform hover:scale-110">
-                <FontAwesomeIcon icon={faPlay} className="ml-0.5" />
-              </span>
-            </a>
-            <div className="flex flex-1 flex-col p-6">
-              <span className="mb-2 inline-block w-fit rounded border border-brand-border bg-brand-bone px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-muted">
-                {video.badge}
-              </span>
-              <h3 className="font-serif text-xl font-bold leading-snug text-brand-navy">
-                {video.title}
-              </h3>
-              <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-600">
-                {video.body}
-              </p>
-              <a
-                href={video.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-5 inline-flex w-full items-center justify-center rounded-lg border border-brand-navy px-4 py-2.5 text-sm font-medium text-brand-navy transition-colors hover:bg-brand-navy hover:text-white"
-              >
-                Ver videoconferencia
-              </a>
-            </div>
-          </Card>
-        ))}
+      <div className="mb-8 text-center">
+        <h2 className="font-serif text-3xl font-bold text-brand-navy">
+          Centro de píldoras audiovisuales
+        </h2>
+        <p className="mt-2 text-slate-600">
+          Una selección de Aula Ciudad. El catálogo completo está en la página
+          del mismo nombre.
+        </p>
+      </div>
+      <VideoGrid videos={preview} />
+      <div className="mt-8 text-center">
+        <Link
+          href="/aula-ciudad"
+          className="inline-flex items-center justify-center rounded-lg bg-brand-terracotta px-6 py-3 font-medium text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-orange-800"
+        >
+          Ver todas las videoconferencias
+        </Link>
       </div>
     </section>
   );
