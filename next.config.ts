@@ -3,6 +3,12 @@ import type { NextConfig } from "next";
 const gcsBucket = process.env.GCS_BUCKET?.trim();
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: [
+    "@google-cloud/cloud-sql-connector",
+    "@google-cloud/storage",
+    "google-auth-library",
+    "pg",
+  ],
   images: {
     qualities: [75, 90],
     remotePatterns: [

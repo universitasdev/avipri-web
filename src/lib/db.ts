@@ -7,6 +7,12 @@ type GlobalPrisma = {
 
 const globalForPrisma = globalThis as unknown as GlobalPrisma;
 
+function envValue(name: string) {
+  const raw = process.env[name]?.trim();
+  if (!raw) return "";
+  return raw.replace(/^["']|["']$/g, "");
+}
+
 function parseDatabaseUrl(url: string) {
   const parsed = new URL(url);
   return {
@@ -17,17 +23,18 @@ function parseDatabaseUrl(url: string) {
 }
 
 async function createCloudSqlAuth() {
-  const client_email = process.env.GCS_CLIENT_EMAIL?.trim();
-  const private_key = process.env.GCS_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const client_email = envValue("GCS_CLIENT_EMAIL");
+  const private_key = envValue("GCS_PRIVATE_KEY").replace(/\\n/g, "\n");
   if (!client_email || !private_key) return undefined;
 
   const { GoogleAuth } = await import("google-auth-library");
   return new GoogleAuth({
     credentials: {
+      type: "service_account",
       client_email,
       private_key,
-      ...(process.env.GCS_PROJECT_ID
-        ? { project_id: process.env.GCS_PROJECT_ID.trim() }
+      ...(envValue("GCS_PROJECT_ID")
+        ? { project_id: envValue("GCS_PROJECT_ID") }
         : {}),
     },
     scopes: ["https://www.googleapis.com/auth/sqlservice.admin"],
@@ -35,7 +42,7 @@ async function createCloudSqlAuth() {
 }
 
 async function createPrismaClient() {
-  const instanceConnectionName = process.env.INSTANCE_CONNECTION_NAME?.trim();
+  const instanceConnectionName = envValue("INSTANCE_CONNECTION_NAME");
   const log =
     process.env.NODE_ENV === "development"
       ? (["error", "warn"] as const)
@@ -71,6 +78,7 @@ async function createPrismaClient() {
     password: db.password,
     database: db.database,
     max: 1,
+    connectionTimeoutMillis: 10000,
   });
 
   return new PrismaClient({
@@ -85,10 +93,15 @@ export function getPrisma() {
     return Promise.resolve(globalForPrisma.prisma);
   }
   if (!globalForPrisma.prismaPromise) {
-    globalForPrisma.prismaPromise = createPrismaClient().then((client) => {
-      globalForPrisma.prisma = client;
-      return client;
-    });
+    globalForPrisma.prismaPromise = createPrismaClient()
+      .then((client) => {
+        globalForPrisma.prisma = client;
+        return client;
+      })
+      .catch((error) => {
+        globalForPrisma.prismaPromise = undefined;
+        throw error;
+      });
   }
   return globalForPrisma.prismaPromise;
 }

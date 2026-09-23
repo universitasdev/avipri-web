@@ -12,7 +12,27 @@ import { issueSession } from "@/lib/auth/session";
 
 const DUMMY_HASH = "$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW";
 
+function loginFailureMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : "Error interno";
+  if (/PRIVATE KEY|BEGIN [A-Z ]+KEY/i.test(message)) {
+    return "Error de configuración del servidor.";
+  }
+  return message.slice(0, 240);
+}
+
 export async function POST(request: Request) {
+  try {
+    return await handleLogin(request);
+  } catch (error) {
+    console.error("admin login failed", error);
+    return NextResponse.json(
+      { error: loginFailureMessage(error) },
+      { status: 500 },
+    );
+  }
+}
+
+async function handleLogin(request: Request) {
   if (!isSameOrigin(request)) {
     return NextResponse.json({ error: "Origen no permitido." }, { status: 403 });
   }
