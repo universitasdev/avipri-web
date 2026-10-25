@@ -15,7 +15,7 @@ function PasswordInput({ className, ...props }: Omit<React.ComponentProps<"input
       <input
         type={visible ? "text" : "password"}
         className={cn(
-          "flex h-12 w-full rounded-md border border-brand-border bg-white py-2 pr-32 pl-3 text-base text-brand-text shadow-sm transition-colors placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-brand-navy/25 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-12 w-full rounded-md border border-brand-border bg-white py-2 pr-32 pl-3 text-base text-brand-text shadow-sm transition-colors placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-brand-navy/25 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-red-500 aria-invalid:ring-2 aria-invalid:ring-red-200",
           className,
         )}
         {...props}

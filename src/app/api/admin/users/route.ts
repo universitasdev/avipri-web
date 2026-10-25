@@ -4,6 +4,7 @@ import { getPrisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth/require-admin";
 import { hashPassword } from "@/lib/auth/password";
 import { userCreateSchema } from "@/lib/admin/schemas";
+import { PASSWORD_POLICY_TEXT } from "@/lib/auth/password-policy";
 import { parseJsonBody } from "@/lib/admin/safe";
 import { ADMIN_USER_SELECT, getAdminUsers } from "@/lib/admin/users";
 
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
   const parsed = userCreateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Revisa nombre, correo y contraseña (mínimo 8 caracteres)." },
+      { error: `Revisa nombre y correo. ${PASSWORD_POLICY_TEXT}` },
       { status: 400 },
     );
   }

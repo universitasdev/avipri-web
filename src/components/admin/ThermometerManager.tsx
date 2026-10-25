@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Alert } from "@/components/admin/ui/alert";
+import { ErrorAlert } from "@/components/admin/ui/error-alert";
 import { Button, buttonVariants } from "@/components/admin/ui/button";
 import { ResultBanner } from "@/components/admin/ui/result-banner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/admin/ui/card";
@@ -155,7 +155,7 @@ export function ThermometerManager({
                 rows={4}
               />
             </div>
-            {error ? <Alert variant="destructive" className="text-base">{error}</Alert> : null}
+            {error ? <ErrorAlert title="No se pudo publicar el termómetro">{error}</ErrorAlert> : null}
             <Button type="submit" variant="terracotta" size="lg" className="text-base" disabled={pending}>
               {pending ? "Guardando…" : "Publicar termómetro"}
             </Button>

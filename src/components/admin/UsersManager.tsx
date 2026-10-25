@@ -2,7 +2,11 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Alert } from "@/components/admin/ui/alert";
+import { Check, Copy, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import { PasswordRules } from "@/components/admin/PasswordRules";
+import { joinSpanish, PASSWORD_MAX_LENGTH, passwordProblems } from "@/lib/auth/password-policy";
+import { ErrorAlert } from "@/components/admin/ui/error-alert";
 import { Badge } from "@/components/admin/ui/badge";
 import { Button } from "@/components/admin/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/admin/ui/card";
@@ -45,12 +49,26 @@ type IssuedCredentials = { email: string; password: string; reason: "creado" | "
 const ROLE_LABEL = { ADMIN: "Admin", EDITOR: "Editor" } as const;
 
 // Sin caracteres ambiguos (0/O, 1/l/I) para dictarla o copiarla a mano.
-const PASSWORD_ALPHABET = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const LOWER = "abcdefghijkmnpqrstuvwxyz";
+const UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+const DIGITS = "23456789";
+const SYMBOLS = "!@#$%&*?";
 
+function randomIndex(max: number) {
+  return crypto.getRandomValues(new Uint32Array(1))[0] % max;
+}
+
+/** Contraseña temporal que cumple las reglas: siempre lleva mayúscula, número y símbolo. */
 function generatePassword(length = 12) {
-  const bytes = new Uint32Array(length);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (value) => PASSWORD_ALPHABET[value % PASSWORD_ALPHABET.length]).join("");
+  const all = LOWER + UPPER + DIGITS + SYMBOLS;
+  const chars = [UPPER, LOWER, DIGITS, SYMBOLS].map((set) => set[randomIndex(set.length)]);
+  while (chars.length < length) chars.push(all[randomIndex(all.length)]);
+  // Mezcla para que la mayúscula y el símbolo no caigan siempre al principio.
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomIndex(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
 }
 
 export function UsersManager({
@@ -70,19 +88,41 @@ export function UsersManager({
   // Resultado del último cambio (rol, activar, desactivar): aviso fijo, no un toast que se va.
   const [notice, setNotice] = useState<{ tone: "success" | "error"; title: string; text?: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [passwordCopied, setPasswordCopied] = useState(false);
 
   async function createUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCreateError(null);
-    setCreating(true);
 
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const email = String(form.get("email") ?? "");
+    const name = String(form.get("name") ?? "").trim();
+    const email = String(form.get("email") ?? "").trim();
+    // Avisos propios (toast) en vez de los globos del navegador.
+    const problems = passwordProblems(password);
+    const problem =
+      name.length < 2
+        ? { field: "name", title: "Escribe el nombre de la persona" }
+        : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+          ? { field: "email", title: "Revisa el correo", description: "Debe verse así: nombre@correo.com" }
+          : problems.length > 0
+            ? {
+                field: "password",
+                title: "La contraseña temporal no es segura",
+                description: `Le falta: ${joinSpanish(problems)}. Pulsa «Generar» para crear una que sí cumpla.`,
+              }
+            : null;
+    if (problem) {
+      toast.error(problem.title, { description: problem.description });
+      document.getElementById(problem.field)?.focus();
+      return;
+    }
+
+    setCreating(true);
     const response = await adminFetch("/api/admin/users", {
       method: "POST",
       body: JSON.stringify({
-        name: String(form.get("name") ?? ""),
+        name,
         email,
         role: newRole,
         password,
@@ -98,7 +138,7 @@ export function UsersManager({
     setIssued({ email: email.trim().toLowerCase(), password, reason: "creado" });
     formElement.reset();
     setNewRole("EDITOR");
-    setPassword(generatePassword());
+    changePassword(generatePassword());
     router.refresh();
   }
 
@@ -129,6 +169,20 @@ export function UsersManager({
     if (ok) setIssued({ email: user.email, password: temporary, reason: "reseteado" });
   }
 
+  function changePassword(value: string) {
+    setPassword(value);
+    setPasswordCopied(false);
+  }
+
+  async function copyPassword() {
+    try {
+      await navigator.clipboard.writeText(password);
+      setPasswordCopied(true);
+    } catch {
+      setNotice({ tone: "error", title: "No se pudo copiar", text: "Selecciona la contraseña y cópiala a mano." });
+    }
+  }
+
   async function copyCredentials() {
     if (!issued) return;
     try {
@@ -147,10 +201,7 @@ export function UsersManager({
           {notice.text}
         </ResultBanner>
       ) : notice ? (
-        <Alert variant="destructive" className="text-base">
-          <p className="font-semibold">{notice.title}</p>
-          {notice.text ? <p className="mt-1">{notice.text}</p> : null}
-        </Alert>
+        <ErrorAlert title={notice.title}>{notice.text}</ErrorAlert>
       ) : null}
       <div>
         <h1 className="font-serif text-3xl font-bold text-brand-navy">Usuarios</h1>
@@ -194,15 +245,19 @@ export function UsersManager({
           <CardDescription>Se crea con una contraseña temporal.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={createUser}>
-            {createError ? <Alert variant="destructive" className="md:col-span-2">{createError}</Alert> : null}
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={createUser} noValidate>
+            {createError ? (
+              <ErrorAlert title="No se pudo crear el usuario" className="md:col-span-2">
+                {createError}
+              </ErrorAlert>
+            ) : null}
             <div className="space-y-2">
               <Label htmlFor="name">Nombre</Label>
-              <Input id="name" name="name" required minLength={2} maxLength={120} />
+              <Input id="name" name="name" maxLength={120} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Correo</Label>
-              <Input id="email" name="email" type="email" required maxLength={120} />
+              <Input id="email" name="email" type="email" maxLength={120} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">Rol</Label>
@@ -223,20 +278,35 @@ export function UsersManager({
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña temporal</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                  minLength={8}
-                  maxLength={72}
-                  className="font-mono"
-                />
-                <Button type="button" variant="outline" onClick={() => setPassword(generatePassword())}>
+              <Input
+                id="password"
+                value={password}
+                onChange={(event) => changePassword(event.target.value)}
+                maxLength={PASSWORD_MAX_LENGTH}
+                aria-describedby="password-rules"
+                className="font-mono"
+              />
+              <PasswordRules id="password-rules" value={password} />
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => changePassword(generatePassword())}>
+                  <RefreshCw aria-hidden="true" />
                   Generar
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={copyPassword}
+                  className={passwordCopied ? "border-emerald-300 bg-emerald-50 text-emerald-800" : undefined}
+                >
+                  {passwordCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+                  {passwordCopied ? "Copiada" : "Copiar"}
+                </Button>
               </div>
+              <p className="text-sm text-brand-muted" aria-live="polite">
+                {passwordCopied
+                  ? "Contraseña copiada. Ya puedes pegarla donde la vayas a enviar."
+                  : "Cópiala para enviársela a la persona por un canal privado."}
+              </p>
             </div>
             <div className="md:col-span-2">
               <Button type="submit" disabled={creating}>

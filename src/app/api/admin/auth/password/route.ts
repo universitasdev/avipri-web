@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth/require-admin";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { issueSession, revokeAllSessions } from "@/lib/auth/session";
 import { passwordChangeSchema } from "@/lib/admin/schemas";
+import { PASSWORD_POLICY_TEXT } from "@/lib/auth/password-policy";
 import { parseJsonBody } from "@/lib/admin/safe";
 
 export async function POST(request: Request) {
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const parsed = passwordChangeSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "La nueva contraseña debe tener entre 8 y 72 caracteres." },
+      { error: PASSWORD_POLICY_TEXT },
       { status: 400 },
     );
   }

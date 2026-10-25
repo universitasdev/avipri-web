@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isStrongPassword, PASSWORD_MAX_LENGTH, PASSWORD_POLICY_TEXT } from "@/lib/auth/password-policy";
 
 const newsPointSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -86,8 +87,10 @@ const emailSchema = z
   .max(120)
   .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
 
-// bcrypt solo usa los primeros 72 bytes.
-const passwordSchema = z.string().min(8).max(72);
+// Para entrar y para la contraseña actual: las viejas siguen sirviendo.
+const passwordSchema = z.string().min(1).max(PASSWORD_MAX_LENGTH);
+// Toda contraseña nueva (al crear, resetear o cambiar) cumple las reglas de seguridad.
+const newPasswordSchema = z.string().refine(isStrongPassword, PASSWORD_POLICY_TEXT);
 
 export const loginSchema = z.object({
   email: emailSchema,
@@ -100,14 +103,14 @@ export const userCreateSchema = z.object({
   name: z.string().trim().min(2).max(120),
   email: emailSchema,
   role: userRoleSchema.default("EDITOR"),
-  password: passwordSchema,
+  password: newPasswordSchema,
 });
 
 export const userUpdateSchema = z.object({
   name: z.string().trim().min(2).max(120).optional(),
   role: userRoleSchema.optional(),
   active: z.boolean().optional(),
-  password: passwordSchema.optional(),
+  password: newPasswordSchema.optional(),
 });
 
 export const categoryCreateSchema = z.object({
@@ -116,7 +119,7 @@ export const categoryCreateSchema = z.object({
 
 export const passwordChangeSchema = z.object({
   currentPassword: passwordSchema,
-  newPassword: passwordSchema,
+  newPassword: newPasswordSchema,
 });
 
 export function extractYoutubeId(input: string) {

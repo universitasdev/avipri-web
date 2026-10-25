@@ -22,7 +22,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/admin/ui/sidebar";
-import { Toaster } from "@/components/admin/ui/sonner";
 import { adminFetch } from "@/components/admin/admin-fetch";
 
 type Role = "ADMIN" | "EDITOR";
@@ -142,7 +141,6 @@ export function AdminShell({
 
   return (
     <SidebarProvider defaultOpen={defaultSidebarOpen}>
-      <Toaster />
       <AdminSidebar user={user} onLogout={logout} />
       <SidebarInset>
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-brand-border bg-white/95 px-3 py-2.5 backdrop-blur sm:px-4">

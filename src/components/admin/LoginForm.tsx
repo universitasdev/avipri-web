@@ -2,13 +2,16 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { Alert } from "@/components/admin/ui/alert";
+import { toast } from "sonner";
+import { ErrorAlert } from "@/components/admin/ui/error-alert";
 import { Button } from "@/components/admin/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/admin/ui/card";
 import { Input } from "@/components/admin/ui/input";
 import { Label } from "@/components/admin/ui/label";
 import { PasswordInput } from "@/components/admin/ui/password-input";
 import { adminFetch, readError } from "@/components/admin/admin-fetch";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginForm() {
   const router = useRouter();
@@ -19,15 +22,28 @@ export function LoginForm() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setPending(true);
 
     const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") ?? "").trim();
+    const password = String(form.get("password") ?? "");
+    // Avisos propios (toast) en vez de los globos del navegador.
+    const problem = !email
+      ? { field: "email", title: "Escribe tu correo" }
+      : !EMAIL_PATTERN.test(email)
+        ? { field: "email", title: "Revisa el correo", description: "Debe verse así: nombre@correo.com" }
+        : !password
+          ? { field: "password", title: "Escribe tu contraseña" }
+          : null;
+    if (problem) {
+      toast.error(problem.title, { description: problem.description });
+      document.getElementById(problem.field)?.focus();
+      return;
+    }
+
+    setPending(true);
     const response = await adminFetch("/api/admin/auth/login", {
       method: "POST",
-      body: JSON.stringify({
-        email: String(form.get("email") ?? ""),
-        password: String(form.get("password") ?? ""),
-      }),
+      body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {
@@ -58,8 +74,8 @@ export function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="space-y-5" onSubmit={onSubmit}>
-          {error ? <Alert variant="destructive" className="text-base">{error}</Alert> : null}
+        <form className="space-y-5" onSubmit={onSubmit} noValidate>
+          {error ? <ErrorAlert title="No pudimos entrar">{error}</ErrorAlert> : null}
           <div className="space-y-2">
             <Label htmlFor="email" className="text-base">
               Correo
@@ -82,8 +98,6 @@ export function LoginForm() {
               id="password"
               name="password"
               autoComplete="current-password"
-              required
-              minLength={8}
               maxLength={72}
             />
           </div>

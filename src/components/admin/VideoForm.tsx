@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert } from "@/components/admin/ui/alert";
+import { ErrorAlert } from "@/components/admin/ui/error-alert";
 import { Button, buttonVariants } from "@/components/admin/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/admin/ui/card";
 import { DatePicker } from "@/components/admin/ui/date-picker";
@@ -82,7 +82,7 @@ export function VideoForm({ video }: { video?: AdminVideoItem }) {
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={onSubmit}>
-            {error ? <Alert variant="destructive">{error}</Alert> : null}
+            {error ? <ErrorAlert title="No se pudo guardar el video">{error}</ErrorAlert> : null}
             <div className="space-y-2">
               <Label htmlFor="youtube">Enlace o ID de YouTube</Label>
               <Input
