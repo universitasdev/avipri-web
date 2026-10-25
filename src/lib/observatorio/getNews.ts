@@ -104,6 +104,7 @@ export function mapNewsArticle(row: NewsRecord): NewsArticle {
           bytes: row.attachmentBytes ?? 0,
         }
       : undefined,
+    stats: { views: row.viewCount, likes: row.likeCount, dislikes: row.dislikeCount },
     external:
       row.externalUrl && row.externalSource
         ? { source: row.externalSource, url: row.externalUrl }

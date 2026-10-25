@@ -12,6 +12,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { categoryStyle } from "@/components/observatorio/categoryStyles";
 import { NewsCard } from "@/components/observatorio/NewsCard";
 import { NewsDocument } from "@/components/observatorio/NewsDocument";
+import { NewsEngagementBar } from "@/components/observatorio/NewsEngagementBar";
 import { NewsGallery } from "@/components/observatorio/NewsGallery";
 import { NewsVideoPlayer } from "@/components/observatorio/NewsVideoPlayer";
 import type { NewsArticle, NewsPoint } from "@/lib/observatorio/content";
@@ -73,13 +74,16 @@ function ExternalReview({ external }: { external: NonNullable<NewsArticle["exter
 /**
  * Página completa de una noticia. La usan el sitio público (/observatorio/<slug>) y la vista
  * previa del panel, para que lo que se revisa antes de publicar sea exactamente lo que se verá.
+ * `engagement` muestra vistas y «Me gusta»; solo en el sitio público, no en la vista previa.
  */
 export function NewsArticleView({
   article,
   related = [],
+  engagement = false,
 }: {
   article: NewsArticle;
   related?: NewsArticle[];
+  engagement?: boolean;
 }) {
   const category = categoryStyle(article.category);
   const paragraphs = (article.lead ?? "")
@@ -219,6 +223,10 @@ export function NewsArticleView({
         ) : null}
 
         {article.attachment ? <NewsDocument attachment={article.attachment} /> : null}
+
+        {engagement && article.stats ? (
+          <NewsEngagementBar slug={article.slug} initial={article.stats} />
+        ) : null}
 
         <Link
           href="/observatorio"

@@ -30,5 +30,5 @@ export default async function NewsDetailPage({ params }: PageProps) {
   if (!article) notFound();
 
   const related = await getRelatedNews(article);
-  return <NewsArticleView article={article} related={related} />;
+  return <NewsArticleView article={article} related={related} engagement />;
 }

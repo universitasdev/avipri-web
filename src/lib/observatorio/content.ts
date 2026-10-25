@@ -23,6 +23,9 @@ export type NewsPoint = {
   body: string;
 };
 
+/** Lo que ven los lectores debajo de la noticia, como en PDUL YA. */
+export type NewsStats = { views: number; likes: number; dislikes: number };
+
 export type NewsArticle = {
   id: string;
   slug: string;
@@ -52,6 +55,8 @@ export type NewsArticle = {
   featured?: boolean;
   /** Fecha en ISO para <time dateTime>. */
   isoDate?: string;
+  /** Solo en noticias de la base (el respaldo estático no las tiene). */
+  stats?: NewsStats;
 };
 
 export type NewsImage = { src: string; alt: string };
