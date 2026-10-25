@@ -11,7 +11,8 @@ function Toaster({ ...props }: ToasterProps) {
       position="top-center"
       richColors
       closeButton
-      duration={4500}
+      // Tiempo de sobra para leer; además tiene botón de cerrar.
+      duration={10000}
       icons={{
         success: <CircleCheck className="size-4" />,
         info: <Info className="size-4" />,

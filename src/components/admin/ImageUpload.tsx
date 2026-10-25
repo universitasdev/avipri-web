@@ -71,13 +71,14 @@ export function ImageUpload({ currentSrc }: { currentSrc?: string | null }) {
           </div>
         )}
       </div>
-      {localError ? <p className="text-xs text-red-700">{localError}</p> : null}
+      {localError ? <p className="text-sm text-red-700">{localError}</p> : null}
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+        <Button variant="outline" size="lg" onClick={() => inputRef.current?.click()}>
           {preview ? "Cambiar imagen" : "Subir imagen"}
         </Button>
         {preview ? (
-          <Button variant="ghost" size="sm" className="text-red-700" onClick={clearImage}>
+          <Button variant="ghost"
+            size="lg" className="text-red-700" onClick={clearImage}>
             Quitar
           </Button>
         ) : null}

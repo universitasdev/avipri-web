@@ -20,6 +20,7 @@ import {
 } from "@/components/admin/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/admin/ui/table";
 import { adminFetch, readError } from "@/components/admin/admin-fetch";
+import { ResultBanner } from "@/components/admin/ui/result-banner";
 import { cn } from "@/lib/utils";
 
 export type AdminNewsItem = {
@@ -50,6 +51,7 @@ export type AdminNewsItem = {
 };
 
 export type AdminNewsListItem = AdminNewsItem & {
+  slug: string;
   authorName: string | null;
   canEdit: boolean;
 };
@@ -58,34 +60,100 @@ function toDateInput(value: string) {
   return value.slice(0, 10);
 }
 
+type Outcome = { kind: "creada" | "actualizada" | "eliminada"; id?: string; title?: string };
+
+function shortTitle(title: string) {
+  return title.length > 90 ? `${title.slice(0, 90)}…` : title;
+}
+
+/** Aviso fijo con el resultado de publicar, guardar o eliminar una noticia. */
+function OutcomeBanner({
+  outcome,
+  article,
+  onClose,
+}: {
+  outcome: Outcome;
+  article?: AdminNewsListItem;
+  onClose: () => void;
+}) {
+  const link = article ? (
+    <a
+      href={`/observatorio/${article.slug}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(buttonVariants({ size: "lg" }))}
+    >
+      Ver la noticia en el sitio
+      <span className="sr-only">(se abre en otra pestaña)</span>
+    </a>
+  ) : null;
+
+  if (outcome.kind === "eliminada") {
+    return (
+      <ResultBanner title="Noticia eliminada" onClose={onClose}>
+        {outcome.title ? `«${shortTitle(outcome.title)}» ` : "La noticia "}ya no aparece en el
+        Observatorio.
+      </ResultBanner>
+    );
+  }
+
+  if (article && !article.published) {
+    return (
+      <ResultBanner
+        tone="info"
+        title={outcome.kind === "creada" ? "Tu noticia quedó guardada como borrador" : "Borrador guardado"}
+        onClose={onClose}
+        actions={
+          <Link href={`/admin/noticias/${article.id}`} className={cn(buttonVariants({ size: "lg" }))}>
+            Seguir editando
+          </Link>
+        }
+      >
+        «{shortTitle(article.title)}» está guardada en el panel, pero el público todavía no la ve.
+        Para publicarla, edítala y marca «Visible en el sitio».
+      </ResultBanner>
+    );
+  }
+
+  return (
+    <ResultBanner
+      title={outcome.kind === "creada" ? "Tu noticia ya está publicada" : "Cambios guardados"}
+      onClose={onClose}
+      actions={
+        <>
+          {link}
+          {outcome.kind === "creada" ? (
+            <Link
+              href="/admin/noticias/nueva"
+              className={cn(buttonVariants({ size: "lg", variant: "outline" }))}
+            >
+              Crear otra noticia
+            </Link>
+          ) : null}
+        </>
+      }
+    >
+      {article
+        ? `«${shortTitle(article.title)}» ya se ve en el Observatorio del sitio público.`
+        : "Ya se ve en el Observatorio del sitio público."}
+    </ResultBanner>
+  );
+}
+
 export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  useEffect(() => {
+  // El formulario llega aquí con ?estado=…&id=… después de publicar o guardar.
+  const [outcome, setOutcome] = useState<Outcome | null>(() => {
     const estado = searchParams.get("estado");
-    if (!estado) return;
+    if (estado !== "creada" && estado !== "actualizada" && estado !== "eliminada") return null;
+    return { kind: estado, id: searchParams.get("id") ?? undefined };
+  });
 
-    if (estado === "creada") {
-      toast.success("Noticia creada", {
-        description: "Ya está en el listado y lista para editar o revisar en el Observatorio.",
-        action: {
-          label: "Ver Observatorio",
-          onClick: () => window.open("/observatorio", "_blank", "noopener,noreferrer"),
-        },
-      });
-    } else if (estado === "eliminada") {
-      toast.success("Noticia eliminada", {
-        description: "Se quitó del Observatorio y de la portada.",
-      });
-    } else if (estado === "actualizada") {
-      toast.success("Noticia actualizada", {
-        description: "Los cambios ya están disponibles en el sitio público.",
-      });
-    }
-
-    router.replace("/admin/noticias", { scroll: false });
+  // Se limpia la dirección para que el aviso no vuelva a salir al recargar.
+  useEffect(() => {
+    if (searchParams.get("estado")) router.replace("/admin/noticias", { scroll: false });
   }, [searchParams, router]);
 
   async function remove(id: string, title: string) {
@@ -96,14 +164,17 @@ export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
       toast.error("No se pudo eliminar", { description: await readError(response) });
       return;
     }
-    toast.success("Noticia eliminada", {
-      description: `“${title.slice(0, 80)}${title.length > 80 ? "…" : ""}” ya no aparece en el Observatorio.`,
-    });
+    setOutcome({ kind: "eliminada", title });
     router.refresh();
   }
 
+  const outcomeArticle = outcome?.id ? articles.find((article) => article.id === outcome.id) : undefined;
+
   return (
     <div className="space-y-6">
+      {outcome ? (
+        <OutcomeBanner outcome={outcome} article={outcomeArticle} onClose={() => setOutcome(null)} />
+      ) : null}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-serif text-3xl font-bold text-brand-navy">Noticias</h1>
@@ -111,8 +182,8 @@ export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
             Lo que publiques aquí aparece en el Observatorio y en la portada.
           </p>
         </div>
-        <Link href="/admin/noticias/nueva" className={cn(buttonVariants())}>
-          Nueva noticia
+        <Link href="/admin/noticias/nueva" className={cn(buttonVariants({ size: "lg" }), "text-base")}>
+          + Nueva noticia
         </Link>
       </div>
 
@@ -140,7 +211,10 @@ export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
               </TableRow>
             ) : (
               articles.map((article) => (
-                <TableRow key={article.id}>
+                <TableRow
+                  key={article.id}
+                  className={cn(article.id === outcome?.id && "bg-emerald-50 hover:bg-emerald-50")}
+                >
                   <TableCell>
                     <p className="max-w-xl font-medium text-brand-navy">{article.title}</p>
                     <p className="mt-1 text-xs text-brand-muted">

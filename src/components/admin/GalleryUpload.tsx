@@ -113,56 +113,53 @@ export function GalleryUpload({
       />
 
       {photos.length > 0 ? (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {photos.map((photo, i) => (
             <li key={photo.key} className="overflow-hidden rounded-lg border border-brand-border bg-white">
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={photo.preview} alt="" className="aspect-[4/3] w-full object-cover" />
-                {i === 0 ? (
-                  <span className="absolute top-2 left-2 rounded-full bg-brand-navy px-2 py-0.5 text-[11px] font-semibold text-white">
-                    Portada
-                  </span>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => remove(i)}
-                  className="absolute top-2 right-2 grid size-7 place-items-center rounded-full bg-white/90 text-red-700 shadow hover:bg-white"
-                >
-                  <X className="size-4" aria-hidden="true" />
-                  <span className="sr-only">Quitar foto {i + 1}</span>
-                </button>
+                <span className="absolute top-2 left-2 rounded-full bg-brand-navy px-2.5 py-1 text-sm font-semibold text-white">
+                  {i === 0 ? "Portada" : `Foto ${i + 1}`}
+                </span>
               </div>
-              <div className="space-y-2 p-2">
+              <div className="space-y-2 p-3">
                 <Input
                   value={photo.alt}
                   onChange={(event) => setAlt(i, event.target.value)}
                   maxLength={200}
-                  placeholder="Qué se ve en la foto"
+                  placeholder="¿Qué se ve en la foto?"
                   aria-label={`Descripción de la foto ${i + 1}`}
-                  className="h-8 text-xs"
                 />
-                <div className="flex justify-between">
+                <div className="grid grid-cols-2 gap-2">
                   <Button
-                    size="xs"
-                    variant="ghost"
+                    variant="outline"
                     disabled={i === 0}
                     onClick={() => move(i, -1)}
                     aria-label={`Mover la foto ${i + 1} antes`}
                   >
-                    <ArrowLeft />
+                    <ArrowLeft aria-hidden="true" />
+                    Antes
                   </Button>
-                  <span className="self-center text-[11px] text-brand-muted">{i + 1}</span>
                   <Button
-                    size="xs"
-                    variant="ghost"
+                    variant="outline"
                     disabled={i === photos.length - 1}
                     onClick={() => move(i, 1)}
                     aria-label={`Mover la foto ${i + 1} después`}
                   >
-                    <ArrowRight />
+                    Después
+                    <ArrowRight aria-hidden="true" />
                   </Button>
                 </div>
+                <Button
+                  variant="ghost"
+                  className="w-full text-red-700 hover:bg-red-50 hover:text-red-800"
+                  onClick={() => remove(i)}
+                  aria-label={`Quitar la foto ${i + 1}`}
+                >
+                  <X aria-hidden="true" />
+                  Quitar foto
+                </Button>
               </div>
             </li>
           ))}
@@ -174,22 +171,23 @@ export function GalleryUpload({
         </div>
       )}
 
-      <p className="text-xs text-brand-muted">
+      <p className="text-base text-brand-muted">
         {photos.length === 0
           ? "Sin fotos, la noticia se muestra como tarjeta de texto (o de documento, si lleva PDF)."
           : photos.length === 1
             ? "1 foto. Con 2 o más se publica como galería."
             : `Galería de ${photos.length} fotos (máximo ${MAX_PHOTOS}). La primera es la portada.`}
       </p>
-      {localError ? <p className="text-xs text-red-700">{localError}</p> : null}
+      {localError ? <p className="text-base text-red-700">{localError}</p> : null}
 
       <Button
         variant="outline"
-        size="sm"
+        size="lg"
         disabled={photos.length >= MAX_PHOTOS}
         onClick={() => inputRef.current?.click()}
       >
-        {photos.length === 0 ? "Subir fotos" : "Agregar fotos"}
+        <ImagePlus aria-hidden="true" />
+        {photos.length === 0 ? "Elegir fotos" : "Agregar más fotos"}
       </Button>
     </div>
   );

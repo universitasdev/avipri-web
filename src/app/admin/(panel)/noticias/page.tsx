@@ -12,6 +12,7 @@ export default async function AdminNewsPage() {
   const rows = await getAdminNews();
   const articles = rows.map((article) => ({
     id: article.id,
+    slug: article.slug,
     category: article.category,
     categoryLabel: article.categoryLabel,
     publishedAt: article.publishedAt.toISOString(),

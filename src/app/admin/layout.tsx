@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function AdminRootLayout({ children }: { children: ReactNode }) {
-  return <div className="min-h-screen font-sans text-brand-text">{children}</div>;
+  return <div className="admin-root min-h-screen font-sans text-brand-text">{children}</div>;
 }

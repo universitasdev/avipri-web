@@ -70,7 +70,7 @@ export function DocumentUpload({
               aria-label="Nombre del documento"
               placeholder="Nombre que verá el público"
             />
-            <p className="text-xs text-brand-muted">
+            <p className="text-sm text-brand-muted">
               PDF · {formatBytes(value.bytes)}
               {value.file ? " · Se sube al guardar la noticia." : ""}
             </p>
@@ -82,16 +82,16 @@ export function DocumentUpload({
           Sin documento adjunto
         </div>
       )}
-      {localError ? <p className="text-xs text-red-700">{localError}</p> : null}
+      {localError ? <p className="text-sm text-red-700">{localError}</p> : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+        <Button variant="outline" size="lg" onClick={() => inputRef.current?.click()}>
           {value ? "Cambiar PDF" : "Subir PDF"}
         </Button>
         {value ? (
           <Button
             variant="ghost"
-            size="sm"
+            size="lg"
             className="text-red-700"
             onClick={() => {
               onChange(null);
