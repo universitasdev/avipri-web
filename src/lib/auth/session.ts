@@ -2,8 +2,37 @@ import { getPrisma } from "@/lib/db";
 import { clearAuthCookies, readAuthCookies, setAuthCookies } from "@/lib/auth/cookies";
 import { hashToken, signAccessToken, signRefreshToken, verifyAccessToken, verifyRefreshToken } from "@/lib/auth/tokens";
 import { REFRESH_TTL_SECONDS } from "@/lib/auth/config";
+import type { Role } from "@prisma/client";
 
-export async function getCurrentAdmin() {
+export type SessionUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  mustChangePassword: boolean;
+};
+
+const SESSION_USER_SELECT = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  mustChangePassword: true,
+  active: true,
+} as const;
+
+function toSessionUser(user: SessionUser & { active: boolean }): SessionUser | null {
+  if (!user.active) return null;
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword,
+  };
+}
+
+export async function getCurrentAdmin(): Promise<SessionUser | null> {
   const { accessToken } = await readAuthCookies();
   if (!accessToken) return null;
 
@@ -12,9 +41,9 @@ export async function getCurrentAdmin() {
     const prisma = await getPrisma();
     const user = await prisma.user.findUnique({
       where: { id: claims.sub },
-      select: { id: true, email: true, name: true },
+      select: SESSION_USER_SELECT,
     });
-    return user;
+    return user ? toSessionUser(user) : null;
   } catch {
     return null;
   }
@@ -35,7 +64,7 @@ export async function issueSession(user: { id: string; email: string }) {
   await setAuthCookies(accessToken, refresh.token);
 }
 
-export async function rotateRefreshSession() {
+export async function rotateRefreshSession(): Promise<SessionUser | null> {
   const { refreshToken } = await readAuthCookies();
   if (!refreshToken) {
     await clearAuthCookies();
@@ -78,12 +107,26 @@ export async function rotateRefreshSession() {
       data: { revokedAt: new Date() },
     });
 
-    await issueSession({ id: stored.user.id, email: stored.user.email });
-    return { id: stored.user.id, email: stored.user.email, name: stored.user.name };
+    const sessionUser = toSessionUser(stored.user);
+    if (!sessionUser) {
+      await clearAuthCookies();
+      return null;
+    }
+
+    await issueSession({ id: sessionUser.id, email: sessionUser.email });
+    return sessionUser;
   } catch {
     await clearAuthCookies();
     return null;
   }
+}
+
+export async function revokeAllSessions(userId: string) {
+  const prisma = await getPrisma();
+  await prisma.refreshToken.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
 }
 
 export async function revokeCurrentSession() {

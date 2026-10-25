@@ -3,18 +3,24 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { Newspaper, Thermometer, LayoutDashboard, LogOut } from "lucide-react";
+import { Newspaper, Thermometer, LayoutDashboard, LogOut, Users, UserCog } from "lucide-react";
 import { Button } from "@/components/admin/ui/button";
 import { Separator } from "@/components/admin/ui/separator";
 import { Toaster } from "@/components/admin/ui/sonner";
 import { adminFetch } from "@/components/admin/admin-fetch";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+type Role = "ADMIN" | "EDITOR";
+
+const NAV: { href: string; label: string; icon: typeof Newspaper; adminOnly?: boolean }[] = [
   { href: "/admin", label: "Resumen", icon: LayoutDashboard },
   { href: "/admin/noticias", label: "Noticias", icon: Newspaper },
-  { href: "/admin/termometro", label: "Termómetro", icon: Thermometer },
+  { href: "/admin/termometro", label: "Termómetro", icon: Thermometer, adminOnly: true },
+  { href: "/admin/usuarios", label: "Usuarios", icon: Users, adminOnly: true },
+  { href: "/admin/cuenta", label: "Mi cuenta", icon: UserCog },
 ];
+
+const ROLE_LABEL: Record<Role, string> = { ADMIN: "Admin", EDITOR: "Editor" };
 
 function isActivePath(pathname: string, href: string) {
   if (href === "/admin") return pathname === "/admin";
@@ -25,11 +31,12 @@ export function AdminShell({
   user,
   children,
 }: {
-  user: { name: string; email: string };
+  user: { name: string; email: string; role: Role };
   children: ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const nav = NAV.filter((item) => !item.adminOnly || user.role === "ADMIN");
 
   async function logout() {
     await adminFetch("/api/admin/auth/logout", { method: "POST" });
@@ -49,7 +56,7 @@ export function AdminShell({
         </div>
         <Separator />
         <nav className="flex flex-1 flex-col gap-1 p-4">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active = isActivePath(pathname, item.href);
             return (
               <Link
@@ -69,7 +76,12 @@ export function AdminShell({
           })}
         </nav>
         <div className="p-4">
-          <p className="truncate text-sm font-medium text-brand-navy">{user.name}</p>
+          <p className="flex items-center gap-2 text-sm font-medium text-brand-navy">
+            <span className="truncate">{user.name}</span>
+            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-muted">
+              {ROLE_LABEL[user.role]}
+            </span>
+          </p>
           <p className="truncate text-xs text-brand-muted">{user.email}</p>
           <Button variant="outline" className="mt-3 w-full" onClick={logout}>
             <LogOut className="h-4 w-4" />
@@ -87,7 +99,7 @@ export function AdminShell({
             </Button>
           </div>
           <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
-            {NAV.map((item) => {
+            {nav.map((item) => {
               const active = isActivePath(pathname, item.href);
               return (
                 <Link

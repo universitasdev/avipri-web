@@ -26,6 +26,22 @@ export function safeNewsImagePath(value: string | null | undefined) {
   return null;
 }
 
+export function safeNewsVideoPath(value: string | null | undefined) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (/^\/uploads\/news\/videos\/[a-f0-9]{32}\.(mp4|webm)$/.test(trimmed)) {
+    return trimmed;
+  }
+  if (
+    /^https:\/\/storage\.googleapis\.com\/[a-z0-9._-]+\/news\/videos\/[a-f0-9]{32}\.(mp4|webm)$/.test(
+      trimmed,
+    )
+  ) {
+    return trimmed;
+  }
+  return null;
+}
+
 export async function parseJsonBody(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {

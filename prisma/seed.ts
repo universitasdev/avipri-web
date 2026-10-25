@@ -16,6 +16,7 @@ const NEWS_DATES: Record<string, string> = {
 function serializeArticle(article: NewsArticle, featured: boolean) {
   return {
     id: article.id,
+    slug: article.slug,
     category: article.category,
     categoryLabel: article.categoryLabel,
     publishedAt: new Date(NEWS_DATES[article.id] ?? "2026-09-01T12:00:00.000Z"),
@@ -47,8 +48,8 @@ async function main() {
   const passwordHash = await hash(password, 12);
   await prisma.user.upsert({
     where: { email },
-    update: { name, passwordHash },
-    create: { email, name, passwordHash },
+    update: { name, passwordHash, role: "ADMIN", active: true },
+    create: { email, name, passwordHash, role: "ADMIN" },
   });
 
   const articles = [serializeArticle(LEAD_ARTICLE, true), ...SECONDARY_ARTICLES.map((item) => serializeArticle(item, false))];

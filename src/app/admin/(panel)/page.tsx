@@ -1,27 +1,48 @@
 import Link from "next/link";
-import { Newspaper, Thermometer } from "lucide-react";
+import { Newspaper, Thermometer, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/admin/ui/card";
+import { getAdminUsers } from "@/lib/admin/users";
+import { isAdminRole } from "@/lib/auth/permissions";
+import { getCurrentAdmin } from "@/lib/auth/session";
 import { getAdminNews } from "@/lib/observatorio/getNews";
 import { getThermometer } from "@/lib/thermometer/getThermometer";
 
 export default async function AdminHomePage() {
-  const [news, thermometer] = await Promise.all([getAdminNews(), getThermometer()]);
+  const admin = await getCurrentAdmin();
+  const isAdmin = admin ? isAdminRole(admin) : false;
+  const [news, thermometer, users] = await Promise.all([
+    getAdminNews(),
+    getThermometer(),
+    isAdmin ? getAdminUsers() : Promise.resolve([]),
+  ]);
+  const ownNews = news.filter((article) => article.createdById === admin?.id).length;
 
   const cards = [
     {
       href: "/admin/noticias",
       title: "Noticias",
-      value: `${news.length}`,
-      hint: "Observatorio y portada",
+      value: isAdmin ? `${news.length}` : `${ownNews}`,
+      hint: isAdmin ? "Observatorio y portada" : `Tuyas · ${news.length} en total`,
       icon: Newspaper,
     },
-    {
-      href: "/admin/termometro",
-      title: "Termómetro",
-      value: thermometer.steps[thermometer.activeIndex]?.label ?? "—",
-      hint: "Fase en curso en El ABC",
-      icon: Thermometer,
-    },
+    ...(isAdmin
+      ? [
+          {
+            href: "/admin/termometro",
+            title: "Termómetro",
+            value: thermometer.steps[thermometer.activeIndex]?.label ?? "—",
+            hint: "Fase en curso en El ABC",
+            icon: Thermometer,
+          },
+          {
+            href: "/admin/usuarios",
+            title: "Usuarios",
+            value: `${users.filter((user) => user.active).length}`,
+            hint: "Cuentas activas del panel",
+            icon: Users,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -32,7 +53,7 @@ export default async function AdminHomePage() {
           Publica sin tocar código. Los cambios se ven en el sitio público al guardar.
         </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <Link key={card.href} href={card.href}>
             <Card className="h-full transition-shadow hover:shadow-md">

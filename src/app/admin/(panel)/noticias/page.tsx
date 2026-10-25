@@ -1,8 +1,14 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { NewsManager } from "@/components/admin/NewsManager";
+import { canEditArticle } from "@/lib/auth/permissions";
+import { getCurrentAdmin } from "@/lib/auth/session";
 import { getAdminNews } from "@/lib/observatorio/getNews";
 
 export default async function AdminNewsPage() {
+  const admin = await getCurrentAdmin();
+  if (!admin) redirect("/admin/login");
+
   const rows = await getAdminNews();
   const articles = rows.map((article) => ({
     id: article.id,
@@ -20,8 +26,13 @@ export default async function AdminNewsPage() {
     href: article.href,
     imageSrc: article.imageSrc,
     imageAlt: article.imageAlt,
+    mediaType: article.mediaType,
+    videoYoutubeId: article.videoYoutubeId,
+    videoFileSrc: article.videoFileSrc,
     featured: article.featured,
     published: article.published,
+    authorName: article.createdBy?.name ?? null,
+    canEdit: canEditArticle(admin, article),
   }));
 
   return (

@@ -38,15 +38,23 @@ export type AdminNewsItem = {
   href: string | null;
   imageSrc: string | null;
   imageAlt: string | null;
+  mediaType: "IMAGE" | "VIDEO";
+  videoYoutubeId: string | null;
+  videoFileSrc: string | null;
   featured: boolean;
   published: boolean;
+};
+
+export type AdminNewsListItem = AdminNewsItem & {
+  authorName: string | null;
+  canEdit: boolean;
 };
 
 function toDateInput(value: string) {
   return value.slice(0, 10);
 }
 
-export function NewsManager({ articles }: { articles: AdminNewsItem[] }) {
+export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -110,6 +118,7 @@ export function NewsManager({ articles }: { articles: AdminNewsItem[] }) {
             <TableRow>
               <TableHead>Título</TableHead>
               <TableHead>Categoría</TableHead>
+              <TableHead>Autor</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead />
             </TableRow>
@@ -117,7 +126,7 @@ export function NewsManager({ articles }: { articles: AdminNewsItem[] }) {
           <TableBody>
             {articles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-sm text-brand-muted">
+                <TableCell colSpan={5}className="py-10 text-center text-sm text-brand-muted">
                   Todavía no hay noticias. Empieza con{" "}
                   <Link href="/admin/noticias/nueva" className="font-medium text-brand-navy underline">
                     Nueva noticia
@@ -135,6 +144,9 @@ export function NewsManager({ articles }: { articles: AdminNewsItem[] }) {
                     </p>
                   </TableCell>
                   <TableCell>{article.categoryLabel}</TableCell>
+                  <TableCell className="text-sm text-brand-muted">
+                    {article.authorName ?? "Equipo editorial"}
+                  </TableCell>
                   <TableCell className="space-x-2">
                     {article.featured ? <Badge>Destacada</Badge> : null}
                     <Badge variant={article.published ? "success" : "warning"}>
@@ -142,45 +154,51 @@ export function NewsManager({ articles }: { articles: AdminNewsItem[] }) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Link
-                      href={`/admin/noticias/${article.id}`}
-                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                    >
-                      Editar
-                    </Link>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="ml-2 text-red-700"
-                          disabled={deletingId === article.id}
+                    {article.canEdit ? (
+                      <>
+                        <Link
+                          href={`/admin/noticias/${article.id}`}
+                          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
                         >
-                          {deletingId === article.id ? "Eliminando…" : "Eliminar"}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Eliminar esta noticia?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Se quitará del Observatorio y de la portada. Esta acción no se puede
-                            deshacer.
-                            <span className="mt-3 block font-medium text-brand-navy">
-                              {article.title}
-                            </span>
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-red-700 text-white hover:bg-red-800"
-                            onClick={() => remove(article.id, article.title)}
-                          >
-                            Sí, eliminar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                          Editar
+                        </Link>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="ml-2 text-red-700"
+                              disabled={deletingId === article.id}
+                            >
+                              {deletingId === article.id ? "Eliminando…" : "Eliminar"}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Eliminar esta noticia?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Se quitará del Observatorio y de la portada. Esta acción no se
+                                puede deshacer.
+                                <span className="mt-3 block font-medium text-brand-navy">
+                                  {article.title}
+                                </span>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-red-700 text-white hover:bg-red-800"
+                                onClick={() => remove(article.id, article.title)}
+                              >
+                                Sí, eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    ) : (
+                      <span className="text-xs text-brand-muted">Solo lectura</span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

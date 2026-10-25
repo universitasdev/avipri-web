@@ -12,12 +12,16 @@ import { Input } from "@/components/admin/ui/input";
 import { Label } from "@/components/admin/ui/label";
 import { Textarea } from "@/components/admin/ui/textarea";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { VideoUpload, uploadNewsVideo } from "@/components/admin/VideoUpload";
+import { extractYoutubeId } from "@/lib/admin/schemas";
 import { adminFetch, readError } from "@/components/admin/admin-fetch";
 import { cn } from "@/lib/utils";
 import type { AdminNewsItem } from "@/components/admin/NewsManager";
 
 type Point = { title: string; body: string };
-type SavePhase = "idle" | "uploading" | "saving";
+type SavePhase = "idle" | "uploading" | "uploadingVideo" | "saving";
+type MediaType = "IMAGE" | "VIDEO";
+type VideoSource = "YOUTUBE" | "FILE";
 
 const CATEGORIES = [
   { id: "institucional", label: "Análisis Institucional" },
@@ -67,6 +71,44 @@ function Field({
   );
 }
 
+function ChoiceGroup<T extends string>({
+  name,
+  value,
+  onChange,
+  options,
+}: {
+  name: string;
+  value: T;
+  onChange: (value: T) => void;
+  options: { value: T; label: string }[];
+}) {
+  return (
+    <div role="radiogroup" className="inline-flex rounded-lg border border-brand-border bg-slate-50 p-1">
+      {options.map((option) => (
+        <label
+          key={option.value}
+          className={cn(
+            "cursor-pointer rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+            value === option.value
+              ? "bg-brand-navy text-white shadow-sm"
+              : "text-slate-600 hover:text-brand-navy",
+          )}
+        >
+          <input
+            type="radio"
+            name={name}
+            value={option.value}
+            checked={value === option.value}
+            onChange={() => onChange(option.value)}
+            className="sr-only"
+          />
+          {option.label}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 async function uploadNewsImage(file: File) {
   const body = new FormData();
   body.append("file", file);
@@ -93,17 +135,28 @@ function visibilityDescription(published: boolean, featured: boolean) {
 export function NewsForm({
   article,
   today,
+  canFeature = false,
 }: {
   article?: AdminNewsItem;
   today?: string;
+  canFeature?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<SavePhase>("idle");
   const [points, setPoints] = useState<Point[]>(() => parsePoints(article?.pointsJson ?? "[]"));
+  const [mediaType, setMediaType] = useState<MediaType>(article?.mediaType ?? "IMAGE");
+  const [videoSource, setVideoSource] = useState<VideoSource>(
+    article?.videoFileSrc ? "FILE" : "YOUTUBE",
+  );
+  const [youtubeInput, setYoutubeInput] = useState(
+    article?.videoYoutubeId ? `https://www.youtube.com/watch?v=${article.videoYoutubeId}` : "",
+  );
+  const [videoProgress, setVideoProgress] = useState(0);
+  const youtubePreviewId = youtubeInput.trim() ? extractYoutubeId(youtubeInput) : null;
   const isEdit = Boolean(article?.id);
-  const pending = phase === "uploading" || phase === "saving";
+  const pending = phase !== "idle";
 
   useEffect(() => {
     if (searchParams.get("estado") !== "creada" || !article?.id) return;
@@ -124,19 +177,44 @@ export function NewsForm({
     const category = String(form.get("category"));
     const imageFile = form.get("imageFile");
     let imageSrc = String(form.get("imageSrc") ?? "") || null;
+    const videoFile = form.get("videoFile");
+    let videoFileSrc = String(form.get("videoFileSrc") ?? "") || null;
     const published = form.get("published") === "on";
-    const featured = form.get("featured") === "on";
+    const featured = canFeature ? form.get("featured") === "on" : (article?.featured ?? false);
 
+    if (mediaType === "VIDEO" && videoSource === "YOUTUBE" && !youtubePreviewId) {
+      setError("Pega un enlace de YouTube válido o cambia a otro tipo de medio.");
+      return;
+    }
+
+    let uploading = "la imagen";
     try {
       if (imageFile instanceof File && imageFile.size > 0) {
         setPhase("uploading");
         imageSrc = await uploadNewsImage(imageFile);
       }
+      uploading = "el video";
+      if (
+        mediaType === "VIDEO" &&
+        videoSource === "FILE" &&
+        videoFile instanceof File &&
+        videoFile.size > 0
+      ) {
+        setVideoProgress(0);
+        setPhase("uploadingVideo");
+        videoFileSrc = await uploadNewsVideo(videoFile, setVideoProgress);
+      }
     } catch (uploadError) {
       const message =
-        uploadError instanceof Error ? uploadError.message : "No se pudo subir la imagen.";
+        uploadError instanceof Error ? uploadError.message : `No se pudo subir ${uploading}.`;
       setError(message);
-      toast.error("No se pudo subir la imagen", { description: message });
+      toast.error(`No se pudo subir ${uploading}`, { description: message });
+      setPhase("idle");
+      return;
+    }
+
+    if (mediaType === "VIDEO" && videoSource === "FILE" && !videoFileSrc) {
+      setError("Sube un archivo de video o cambia a otro tipo de medio.");
       setPhase("idle");
       return;
     }
@@ -157,8 +235,11 @@ export function NewsForm({
       eventDetailsLabel: String(form.get("eventDetailsLabel") ?? "") || null,
       cta: String(form.get("cta") ?? "") || null,
       href: String(form.get("href") ?? "") || null,
+      mediaType,
       imageSrc,
       imageAlt: String(form.get("imageAlt") ?? "") || null,
+      videoYoutube: mediaType === "VIDEO" && videoSource === "YOUTUBE" ? youtubeInput : null,
+      videoFileSrc: mediaType === "VIDEO" && videoSource === "FILE" ? videoFileSrc : null,
       featured,
       published,
     };
@@ -206,7 +287,9 @@ export function NewsForm({
   const submitLabel =
     phase === "uploading"
       ? "Subiendo imagen…"
-      : phase === "saving"
+      : phase === "uploadingVideo"
+        ? `Subiendo video… ${videoProgress}%`
+        : phase === "saving"
         ? "Guardando…"
         : isEdit
           ? "Guardar cambios"
@@ -384,34 +467,93 @@ export function NewsForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Imagen de portada</CardTitle>
+            <CardTitle>Medio principal</CardTitle>
             <CardDescription>
-              Sube un archivo desde tu computador. En producción se guarda en Cloud Storage; en local
-              puede usarse la carpeta{" "}
-              <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">public/uploads/news/</code>
-              . Se muestra a la izquierda de la noticia destacada y en la portada.
+              Cada noticia lleva una foto o un video. Se muestra en la noticia destacada, en la
+              portada y al abrir la noticia en el Observatorio.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-5 md:grid-cols-2">
-            <Field
-              label="Foto"
-              hint="JPG, PNG o WebP, máximo 3 MB. No uses un enlace de internet: elige el archivo con el botón. Si no subes foto, el sitio muestra un recuadro institucional."
-            >
-              <ImageUpload currentSrc={article?.imageSrc} />
-            </Field>
-            <Field
-              id="imageAlt"
-              label="Descripción de la foto"
-              hint="Frase que dice qué se ve en la imagen, para personas que no pueden verla y para buscadores. Ejemplo: “Promulgación del Decreto de Inicio del PDUL Iribarren”."
-            >
-              <Input
+          <CardContent className="space-y-5">
+            <ChoiceGroup
+              name="mediaType"
+              value={mediaType}
+              onChange={setMediaType}
+              options={[
+                { value: "IMAGE", label: "Foto" },
+                { value: "VIDEO", label: "Video" },
+              ]}
+            />
+            <div className="grid gap-5 md:grid-cols-2">
+              {/* Se ocultan en vez de desmontarse para no perder un archivo ya elegido al cambiar de opción. */}
+              <div className={cn("space-y-4", mediaType !== "VIDEO" && "hidden")}>
+                <ChoiceGroup
+                  name="videoSource"
+                  value={videoSource}
+                  onChange={setVideoSource}
+                  options={[
+                    { value: "YOUTUBE", label: "Enlace de YouTube" },
+                    { value: "FILE", label: "Archivo de video" },
+                  ]}
+                />
+                <div className={cn(videoSource !== "YOUTUBE" && "hidden")}>
+                  <Field
+                    id="videoYoutube"
+                    label="Enlace de YouTube"
+                    hint="Copia el enlace del video desde YouTube (botón Compartir) y pégalo aquí."
+                  >
+                    <Input
+                      id="videoYoutube"
+                      value={youtubeInput}
+                      onChange={(event) => setYoutubeInput(event.target.value)}
+                      maxLength={200}
+                      placeholder="https://www.youtube.com/watch?v=…"
+                    />
+                    {youtubeInput.trim() && !youtubePreviewId ? (
+                      <p className="text-xs text-red-700">Ese enlace no parece de un video de YouTube.</p>
+                    ) : null}
+                    {youtubePreviewId ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`https://i.ytimg.com/vi/${youtubePreviewId}/hqdefault.jpg`}
+                        alt="Miniatura del video de YouTube"
+                        className="aspect-video w-full rounded-lg border border-brand-border object-cover"
+                      />
+                    ) : null}
+                  </Field>
+                </div>
+                <div className={cn(videoSource !== "FILE" && "hidden")}>
+                  <Field
+                    label="Archivo de video"
+                    hint="MP4 o WebM, máximo 200 MB. Se sube al guardar; no cierres la página hasta que termine."
+                  >
+                    <VideoUpload currentSrc={article?.videoFileSrc} />
+                  </Field>
+                </div>
+              </div>
+              <Field
+                label={mediaType === "VIDEO" ? "Portada del video (opcional)" : "Foto"}
+                hint={
+                  mediaType === "VIDEO"
+                    ? "Imagen que se ve en la tarjeta antes de reproducir. Si no subes una, se usa la miniatura de YouTube o el primer cuadro del video. JPG, PNG o WebP, máximo 3 MB."
+                    : "JPG, PNG o WebP, máximo 3 MB. Elige el archivo con el botón. Si no subes foto, la noticia se muestra como tarjeta de texto con el color de su categoría."
+                }
+              >
+                <ImageUpload currentSrc={article?.imageSrc} />
+              </Field>
+              <Field
                 id="imageAlt"
-                name="imageAlt"
-                defaultValue={article?.imageAlt ?? ""}
-                maxLength={200}
-                placeholder="Describe la foto en una frase"
-              />
-            </Field>
+                label={mediaType === "VIDEO" ? "Descripción del video" : "Descripción de la foto"}
+                hint="Frase que dice qué se ve, para personas que no pueden verlo y para buscadores. Ejemplo: “Promulgación del Decreto de Inicio del PDUL Iribarren”."
+              >
+                <Input
+                  id="imageAlt"
+                  name="imageAlt"
+                  defaultValue={article?.imageAlt ?? ""}
+                  maxLength={200}
+                  placeholder="Describe en una frase lo que se ve"
+                />
+              </Field>
+            </div>
           </CardContent>
         </Card>
 
@@ -454,21 +596,29 @@ export function NewsForm({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <label className="flex items-start gap-3 text-sm">
-              <input
-                type="checkbox"
-                name="featured"
-                className="mt-1"
-                defaultChecked={article?.featured ?? false}
-              />
-              <span>
-                <span className="font-medium text-brand-navy">Destacada en portada</span>
-                <span className="mt-1 block text-xs leading-relaxed text-brand-muted">
-                  Es la noticia grande del Observatorio y también aparece en el inicio. Solo puede
-                  haber una destacada: si marcas esta, se quita la anterior.
+            {canFeature ? (
+              <label className="flex items-start gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="featured"
+                  className="mt-1"
+                  defaultChecked={article?.featured ?? false}
+                />
+                <span>
+                  <span className="font-medium text-brand-navy">Destacada en portada</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-brand-muted">
+                    Es la noticia grande del Observatorio y también aparece en el inicio. Solo puede
+                    haber una destacada: si marcas esta, se quita la anterior.
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
+            ) : (
+              <p className="text-xs leading-relaxed text-brand-muted">
+                {article?.featured
+                  ? "Esta noticia es la destacada en portada. Solo un admin puede cambiarlo."
+                  : "La noticia destacada en portada la elige un admin."}
+              </p>
+            )}
             <label className="flex items-start gap-3 text-sm">
               <input
                 type="checkbox"

@@ -7,6 +7,7 @@ export type NewsPoint = {
 
 export type NewsArticle = {
   id: string;
+  slug: string;
   category: NewsCategoryId;
   categoryLabel: string;
   date: string;
@@ -24,7 +25,15 @@ export type NewsArticle = {
     src: string;
     alt: string;
   };
+  video?: NewsVideo;
+  featured?: boolean;
+  /** Fecha en ISO para <time dateTime>. */
+  isoDate?: string;
 };
+
+export type NewsVideo =
+  | { kind: "youtube"; youtubeId: string; title: string; poster: string }
+  | { kind: "file"; src: string; title: string; poster?: string };
 
 export const OBSERVATORIO_HERO = {
   badge: "Órgano de difusión y doctrina técnica",
@@ -35,6 +44,7 @@ export const OBSERVATORIO_HERO = {
 
 export const LEAD_ARTICLE: NewsArticle = {
   id: "decreto-inicio-pdul",
+  slug: "decreto-inicio-pdul",
   category: "institucional",
   categoryLabel: "Análisis Institucional",
   date: "14 de septiembre de 2026",
@@ -67,6 +77,7 @@ export const LEAD_ARTICLE: NewsArticle = {
 export const SECONDARY_ARTICLES: NewsArticle[] = [
   {
     id: "sentencia-928-tsj",
+    slug: "sentencia-928-tsj",
     category: "doctrina",
     categoryLabel: "Doctrina Legal",
     date: "8 de septiembre de 2026",
@@ -93,6 +104,7 @@ export const SECONDARY_ARTICLES: NewsArticle[] = [
   },
   {
     id: "microzonificacion-sismica",
+    slug: "microzonificacion-sismica",
     category: "vuf",
     categoryLabel: "Retiros y VUF",
     date: "4 de septiembre de 2026",
@@ -119,6 +131,7 @@ export const SECONDARY_ARTICLES: NewsArticle[] = [
   },
   {
     id: "antifragilidad-aula-ciudad",
+    slug: "antifragilidad-aula-ciudad",
     category: "aula",
     categoryLabel: "Aula Ciudad",
     date: "12 de septiembre de 2026",

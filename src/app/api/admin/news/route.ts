@@ -3,12 +3,16 @@ import { revalidatePath } from "next/cache";
 import { getPrisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { newsInputSchema, parsePublishedAt } from "@/lib/admin/schemas";
-import { parseJsonBody, safeNewsImagePath, safePublicUrl } from "@/lib/admin/safe";
+import { parseJsonBody } from "@/lib/admin/safe";
+import { buildNewsData } from "@/lib/admin/news-input";
 import { getAdminNews } from "@/lib/observatorio/getNews";
+import { canFeatureArticle } from "@/lib/auth/permissions";
+import { uniqueNewsSlug } from "@/lib/observatorio/slug";
 
 function revalidateNews() {
   revalidatePath("/");
   revalidatePath("/observatorio");
+  revalidatePath("/observatorio/[slug]", "page");
 }
 
 export async function GET(request: Request) {
@@ -41,29 +45,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Fecha inválida." }, { status: 400 });
   }
 
+  const built = buildNewsData(parsed.data, publishedAt);
+  if (!built.ok) {
+    return NextResponse.json({ error: built.error }, { status: 400 });
+  }
+
+  const featured = canFeatureArticle(auth.admin) ? parsed.data.featured : false;
   const prisma = await getPrisma();
-  if (parsed.data.featured) {
+  if (featured) {
     await prisma.newsArticle.updateMany({ data: { featured: false } });
   }
 
   const article = await prisma.newsArticle.create({
     data: {
-      category: parsed.data.category,
-      categoryLabel: parsed.data.categoryLabel,
-      publishedAt,
-      title: parsed.data.title,
-      subtitle: parsed.data.subtitle,
-      lead: parsed.data.lead || null,
-      pointsLabel: parsed.data.pointsLabel || null,
-      pointsJson: JSON.stringify(parsed.data.points),
-      eventDetailsLabel: parsed.data.eventDetailsLabel || null,
-      eventDetailsJson: parsed.data.eventDetails ? JSON.stringify(parsed.data.eventDetails) : null,
-      cta: parsed.data.cta || null,
-      href: safePublicUrl(parsed.data.href),
-      imageSrc: safeNewsImagePath(parsed.data.imageSrc),
-      imageAlt: parsed.data.imageAlt || null,
-      featured: parsed.data.featured,
-      published: parsed.data.published,
+      ...built.data,
+      slug: await uniqueNewsSlug(prisma, built.data.title),
+      featured,
+      createdById: auth.admin.id,
+      updatedById: auth.admin.id,
     },
   });
 

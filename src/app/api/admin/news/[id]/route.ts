@@ -3,13 +3,16 @@ import { revalidatePath } from "next/cache";
 import { getPrisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { newsInputSchema, parsePublishedAt } from "@/lib/admin/schemas";
-import { parseJsonBody, safeNewsImagePath, safePublicUrl } from "@/lib/admin/safe";
+import { parseJsonBody } from "@/lib/admin/safe";
+import { buildNewsData } from "@/lib/admin/news-input";
+import { canEditArticle, canFeatureArticle } from "@/lib/auth/permissions";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 function revalidateNews() {
   revalidatePath("/");
   revalidatePath("/observatorio");
+  revalidatePath("/observatorio/[slug]", "page");
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -21,6 +24,12 @@ export async function PATCH(request: Request, context: RouteContext) {
   const existing = await prisma.newsArticle.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Noticia no encontrada." }, { status: 404 });
+  }
+  if (!canEditArticle(auth.admin, existing)) {
+    return NextResponse.json(
+      { error: "Solo puedes editar las noticias que creaste." },
+      { status: 403 },
+    );
   }
 
   let body: unknown;
@@ -42,7 +51,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Fecha inválida." }, { status: 400 });
   }
 
-  if (parsed.data.featured) {
+  const built = buildNewsData(parsed.data, publishedAt);
+  if (!built.ok) {
+    return NextResponse.json({ error: built.error }, { status: 400 });
+  }
+
+  // Un editor no puede cambiar la destacada: se conserva el valor actual.
+  const featured = canFeatureArticle(auth.admin) ? parsed.data.featured : existing.featured;
+  if (featured) {
     await prisma.newsArticle.updateMany({
       where: { NOT: { id } },
       data: { featured: false },
@@ -52,22 +68,9 @@ export async function PATCH(request: Request, context: RouteContext) {
   const article = await prisma.newsArticle.update({
     where: { id },
     data: {
-      category: parsed.data.category,
-      categoryLabel: parsed.data.categoryLabel,
-      publishedAt,
-      title: parsed.data.title,
-      subtitle: parsed.data.subtitle,
-      lead: parsed.data.lead || null,
-      pointsLabel: parsed.data.pointsLabel || null,
-      pointsJson: JSON.stringify(parsed.data.points),
-      eventDetailsLabel: parsed.data.eventDetailsLabel || null,
-      eventDetailsJson: parsed.data.eventDetails ? JSON.stringify(parsed.data.eventDetails) : null,
-      cta: parsed.data.cta || null,
-      href: safePublicUrl(parsed.data.href),
-      imageSrc: safeNewsImagePath(parsed.data.imageSrc),
-      imageAlt: parsed.data.imageAlt || null,
-      featured: parsed.data.featured,
-      published: parsed.data.published,
+      ...built.data,
+      featured,
+      updatedById: auth.admin.id,
     },
   });
 
@@ -81,6 +84,20 @@ export async function DELETE(request: Request, context: RouteContext) {
 
   const { id } = await context.params;
   const prisma = await getPrisma();
+  const existing = await prisma.newsArticle.findUnique({
+    where: { id },
+    select: { createdById: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Noticia no encontrada." }, { status: 404 });
+  }
+  if (!canEditArticle(auth.admin, existing)) {
+    return NextResponse.json(
+      { error: "Solo puedes eliminar las noticias que creaste." },
+      { status: 403 },
+    );
+  }
+
   try {
     await prisma.newsArticle.delete({ where: { id } });
   } catch {

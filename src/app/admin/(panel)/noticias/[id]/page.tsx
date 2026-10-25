@@ -1,19 +1,26 @@
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { NewsForm } from "@/components/admin/NewsForm";
+import { canEditArticle, canFeatureArticle } from "@/lib/auth/permissions";
+import { getCurrentAdmin } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/db";
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function EditNewsPage({ params }: PageProps) {
   const { id } = await params;
+  const admin = await getCurrentAdmin();
+  if (!admin) redirect("/admin/login");
+
   const prisma = await getPrisma();
   const article = await prisma.newsArticle.findUnique({ where: { id } });
   if (!article) notFound();
+  if (!canEditArticle(admin, article)) redirect("/admin/noticias");
 
   return (
     <Suspense fallback={<p className="text-sm text-brand-muted">Cargando noticia…</p>}>
       <NewsForm
+        canFeature={canFeatureArticle(admin)}
         article={{
           id: article.id,
           category: article.category,
@@ -30,6 +37,9 @@ export default async function EditNewsPage({ params }: PageProps) {
           href: article.href,
           imageSrc: article.imageSrc,
           imageAlt: article.imageAlt,
+          mediaType: article.mediaType,
+          videoYoutubeId: article.videoYoutubeId,
+          videoFileSrc: article.videoFileSrc,
           featured: article.featured,
           published: article.published,
         }}

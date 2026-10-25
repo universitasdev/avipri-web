@@ -32,6 +32,10 @@ export const newsInputSchema = z.object({
     .nullable()
     .transform((value) => (value ? value : null)),
   imageAlt: z.string().trim().max(200).optional().nullable(),
+  mediaType: z.enum(["IMAGE", "VIDEO"]).default("IMAGE"),
+  // Enlace o ID de YouTube; el servidor extrae el ID.
+  videoYoutube: z.string().trim().max(200).optional().nullable(),
+  videoFileSrc: z.string().trim().max(500).optional().nullable(),
   featured: z.boolean().default(false),
   published: z.boolean().default(true),
 });
@@ -52,14 +56,40 @@ export const thermometerInputSchema = z.object({
   activeDescription: z.string().trim().min(8).max(600),
 });
 
+const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(120)
+  .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+
+// bcrypt solo usa los primeros 72 bytes.
+const passwordSchema = z.string().min(8).max(72);
+
 export const loginSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .max(120)
-    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/),
-  password: z.string().min(8).max(72),
+  email: emailSchema,
+  password: passwordSchema,
+});
+
+export const userRoleSchema = z.enum(["ADMIN", "EDITOR"]);
+
+export const userCreateSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  email: emailSchema,
+  role: userRoleSchema.default("EDITOR"),
+  password: passwordSchema,
+});
+
+export const userUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(120).optional(),
+  role: userRoleSchema.optional(),
+  active: z.boolean().optional(),
+  password: passwordSchema.optional(),
+});
+
+export const passwordChangeSchema = z.object({
+  currentPassword: passwordSchema,
+  newPassword: passwordSchema,
 });
 
 export function extractYoutubeId(input: string) {

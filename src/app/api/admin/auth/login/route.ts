@@ -74,7 +74,7 @@ async function handleLogin(request: Request) {
     ok = false;
   }
 
-  if (!user || !ok) {
+  if (!user || !ok || !user.active) {
     await recordLoginFailure(gate.ip);
     return NextResponse.json({ error: "Credenciales inválidas." }, { status: 401 });
   }
@@ -85,5 +85,10 @@ async function handleLogin(request: Request) {
     data: { revokedAt: new Date() },
   });
   await issueSession({ id: user.id, email: user.email });
-  return NextResponse.json({ ok: true, name: user.name, email: user.email });
+  return NextResponse.json({
+    ok: true,
+    name: user.name,
+    email: user.email,
+    mustChangePassword: user.mustChangePassword,
+  });
 }

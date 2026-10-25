@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { LeadArticle } from "@/components/observatorio/LeadArticle";
-import { NewsGrid } from "@/components/observatorio/NewsGrid";
+import { NewsMosaic } from "@/components/observatorio/NewsMosaic";
 import { ObservatorioHero } from "@/components/observatorio/ObservatorioHero";
 import { getNews } from "@/lib/observatorio/getNews";
 
@@ -11,14 +10,16 @@ export const metadata: Metadata = {
 };
 
 export default async function ObservatorioPage() {
-  const { lead, articles } = await getNews();
+  const articles = await getNews();
 
   return (
     <div className="urban-pattern">
       <ObservatorioHero />
       <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-        <LeadArticle article={lead} />
-        <NewsGrid articles={articles} />
+        <p className="mb-5 text-sm text-brand-muted">
+          {articles.length === 1 ? "1 noticia" : `${articles.length} noticias`}
+        </p>
+        <NewsMosaic articles={articles} />
       </section>
     </div>
   );

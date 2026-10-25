@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getPrisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth/require-admin";
+import { requireAdmin, requireRole } from "@/lib/auth/require-admin";
 import { thermometerInputSchema } from "@/lib/admin/schemas";
 import { parseJsonBody } from "@/lib/admin/safe";
 import { THERMOMETER_STEPS } from "@/lib/thermometer/steps";
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireAdmin(request);
+  const auth = await requireRole(request, "ADMIN");
   if (!auth.ok) return auth.response;
 
   let body: unknown;
