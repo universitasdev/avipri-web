@@ -3,6 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   faArrowRight,
+  faArrowUpRightFromSquare,
+  faBookOpenReader,
   faDownload,
   faFilePdf,
   faImages,
@@ -11,7 +13,7 @@ import {
   faVideo,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { CATEGORY_STYLES } from "@/components/observatorio/categoryStyles";
+import { categoryStyle } from "@/components/observatorio/categoryStyles";
 import type { NewsArticle } from "@/lib/observatorio/content";
 import { formatBytes } from "@/lib/format";
 import { acomodarMosaico, type Celda, type FormatoMosaico } from "@/lib/observatorio/mosaic";
@@ -25,16 +27,8 @@ import { acomodarMosaico, type Celda, type FormatoMosaico } from "@/lib/observat
  *   IMAGEN    1×2  foto vertical a sangre; el subtítulo aparece al pasar el cursor
  *   DOCUMENTO 1×1  hoja con esquina doblada y descarga directa del PDF
  *   TEXTO     2×1  franja con el color de la categoría, para noticias sin foto ni video
+ * Las reseñas de artículos externos llevan además un enlace directo a la revista.
  */
-
-/** Color de las piezas sin foto. Aula Ciudad va en naranja con texto oscuro. */
-const CATEGORY_FILL: Record<NewsArticle["category"], { bg: string; icon: string; dark?: boolean }> =
-  {
-    institucional: { bg: "bg-brand-navy", icon: "text-white/10" },
-    doctrina: { bg: "bg-brand-terracotta", icon: "text-white/15" },
-    vuf: { bg: "bg-brand-territorial", icon: "text-white/15" },
-    aula: { bg: "bg-brand-orange", icon: "text-brand-navy/15", dark: true },
-  };
 
 /** Degradado navy (#1a2b4b) para leer el texto sobre fotos. */
 const SHADE_IMAGE =
@@ -57,6 +51,42 @@ function formatOf(article: NewsArticle): FormatoMosaico {
   if (article.image) return "IMAGEN";
   if (article.attachment) return "DOCUMENTO";
   return "TEXTO";
+}
+
+/** Insignia de reseña: el artículo completo está en otra revista. */
+function ReviewBadge({ article, light }: { article: NewsArticle; light: boolean }) {
+  if (!article.external) return null;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+        light ? "bg-white text-brand-navy" : "bg-brand-navy text-white"
+      }`}
+    >
+      <FontAwesomeIcon icon={faBookOpenReader} />
+      Reseña · {article.external.source}
+    </span>
+  );
+}
+
+/** Enlace directo a la revista, encima del enlace de la pieza (relative z-10). */
+function ExternalCornerLink({ article, dark = false }: { article: NewsArticle; dark?: boolean }) {
+  if (!article.external) return null;
+  return (
+    <a
+      href={article.external.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`absolute top-4 right-4 z-10 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold shadow-md transition-colors ${
+        dark
+          ? "bg-brand-navy text-white hover:bg-brand-terracotta"
+          : "bg-white text-brand-navy hover:bg-brand-orange"
+      }`}
+    >
+      Leer en la revista
+      <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
+      <span className="sr-only">(se abre en otra pestaña)</span>
+    </a>
+  );
 }
 
 /** Insignia "PDF" para piezas con foto o video que además traen un documento. */
@@ -97,6 +127,7 @@ function Meta({ article, light = false }: { article: NewsArticle; light?: boolea
       >
         {article.categoryLabel}
       </span>
+      <ReviewBadge article={article} light={light} />
       <PdfBadge article={article} />
       <span aria-hidden="true">·</span>
       <time dateTime={article.isoDate}>{article.dateShort}</time>
@@ -127,6 +158,7 @@ function ImagePiece({
   const image = article.image!;
   return (
     <article className={`${piece} h-[26rem] bg-brand-navy sm:h-full`}>
+      <ExternalCornerLink article={article} />
       <Image
         src={image.src}
         alt={image.alt}
@@ -157,6 +189,7 @@ function VideoPiece({ article, priority }: { article: NewsArticle; priority: boo
   const video = article.video!;
   return (
     <article className={`${piece} h-[24rem] bg-brand-navy sm:h-full`}>
+      <ExternalCornerLink article={article} />
       {video.poster ? (
         <Image
           src={video.poster}
@@ -208,11 +241,14 @@ function GalleryPiece({ article, priority }: { article: NewsArticle; priority: b
   const photos = article.images ?? [];
   const [main, ...rest] = photos;
   const extra = photos.length - 3;
+  const pair = photos.length === 2;
   return (
     <article className={`${piece} h-[28rem] bg-brand-navy sm:h-full`}>
-      <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-1">
+      <ExternalCornerLink article={article} />
+      {/* Con 2 fotos van en mitades; con 3 o más, una grande y dos chicas (y «+N»). */}
+      <div className={`absolute inset-0 grid gap-1 ${pair ? "grid-cols-2" : "grid-cols-3 grid-rows-2"}`}>
         {main ? (
-          <div className="relative col-span-2 row-span-2 overflow-hidden">
+          <div className={`relative overflow-hidden ${pair ? "" : "col-span-2 row-span-2"}`}>
             <Image
               src={main.src}
               alt={main.alt}
@@ -300,8 +336,9 @@ function DocumentPiece({ article }: { article: NewsArticle }) {
 }
 
 function TextPiece({ article }: { article: NewsArticle }) {
-  const fill = CATEGORY_FILL[article.category];
-  const icon = CATEGORY_STYLES[article.category].icon;
+  const style = categoryStyle(article.category);
+  const fill = { bg: style.fill, icon: style.fillIcon, dark: style.dark };
+  const icon = style.icon;
   return (
     <article
       className={`${piece} @container flex h-full min-h-56 flex-col justify-between p-6 sm:min-h-0 sm:p-6 ${fill.bg}`}
@@ -327,13 +364,18 @@ function TextPiece({ article }: { article: NewsArticle }) {
           {article.subtitle}
         </p>
       </div>
-      <FontAwesomeIcon
-        icon={faArrowRight}
-        aria-hidden="true"
-        className={`absolute top-6 right-6 -rotate-45 transition-transform duration-200 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5 ${
-          fill.dark ? "text-brand-navy" : "text-white"
-        }`}
-      />
+      {/* En reseñas, la flecha decorativa se reemplaza por el enlace a la revista. */}
+      {article.external ? (
+        <ExternalCornerLink article={article} dark={fill.dark} />
+      ) : (
+        <FontAwesomeIcon
+          icon={faArrowRight}
+          aria-hidden="true"
+          className={`absolute top-6 right-6 -rotate-45 transition-transform duration-200 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5 ${
+            fill.dark ? "text-brand-navy" : "text-white"
+          }`}
+        />
+      )}
     </article>
   );
 }

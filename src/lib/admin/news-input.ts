@@ -101,13 +101,15 @@ export function buildNewsData(input: NewsInput, publishedAt: Date) {
   if (!media.ok) return media;
   const attachment = resolveAttachment(input);
   if (!attachment.ok) return attachment;
+  const external = resolveExternal(input);
+  if (!external.ok) return external;
 
   return {
     ok: true as const,
     images: media.images,
+    tags: input.tags,
     data: {
-      category: input.category,
-      categoryLabel: input.categoryLabel,
+      categoryId: input.categoryId,
       publishedAt,
       title: input.title,
       subtitle: input.subtitle,
@@ -122,6 +124,29 @@ export function buildNewsData(input: NewsInput, publishedAt: Date) {
       published: input.published,
       ...media.media,
       ...attachment.attachment,
+      ...external.external,
     },
   };
+}
+
+/** Reseña de un artículo de otra revista: nombre de la revista y enlace https, o nada. */
+function resolveExternal(input: NewsInput) {
+  const source = input.externalSource?.trim() || "";
+  const url = input.externalUrl?.trim() || "";
+  if (!source && !url) {
+    return { ok: true as const, external: { externalSource: null, externalUrl: null } };
+  }
+  if (!source || !url) {
+    return {
+      ok: false,
+      error: "Para una reseña escribe el nombre de la revista y el enlace al artículo.",
+    } satisfies Failure;
+  }
+  if (!url.startsWith("https://") || !safePublicUrl(url)) {
+    return {
+      ok: false,
+      error: "El enlace al artículo debe ser una dirección completa que empiece con https://",
+    } satisfies Failure;
+  }
+  return { ok: true as const, external: { externalSource: source, externalUrl: url } };
 }

@@ -1,4 +1,22 @@
-export type NewsCategoryId = "institucional" | "doctrina" | "vuf" | "aula";
+/** Categoría de una noticia: una sola por noticia; la crea el propio equipo editorial. */
+export type NewsCategory = {
+  slug: string;
+  name: string;
+  /** Clave de la paleta de marca (ver categoryStyles). */
+  color: string;
+  icon?: string | null;
+};
+
+/** Etiqueta libre: varias por noticia, sin jerarquía. */
+export type NewsTagRef = { slug: string; name: string };
+
+/** Las 4 categorías originales, para el respaldo estático cuando no hay base de datos. */
+export const LEGACY_CATEGORIES = {
+  institucional: { slug: "analisis-institucional", name: "Análisis Institucional", color: "navy", icon: "building" },
+  doctrina: { slug: "doctrina-legal", name: "Doctrina Legal", color: "terracotta", icon: "book" },
+  vuf: { slug: "retiros-y-vuf", name: "Retiros y VUF", color: "territorial", icon: "ruler" },
+  aula: { slug: "aula-ciudad", name: "Aula Ciudad", color: "orange", icon: "graduation" },
+} satisfies Record<string, NewsCategory>;
 
 export type NewsPoint = {
   title: string;
@@ -8,8 +26,12 @@ export type NewsPoint = {
 export type NewsArticle = {
   id: string;
   slug: string;
-  category: NewsCategoryId;
+  category: NewsCategory;
+  /** Nombre de la categoría (atajo de category.name). */
   categoryLabel: string;
+  tags?: NewsTagRef[];
+  /** Reseña de un artículo publicado en otra revista. */
+  external?: { source: string; url: string };
   date: string;
   dateShort: string;
   title: string;
@@ -50,7 +72,7 @@ export const OBSERVATORIO_HERO = {
 export const LEAD_ARTICLE: NewsArticle = {
   id: "decreto-inicio-pdul",
   slug: "decreto-inicio-pdul",
-  category: "institucional",
+  category: LEGACY_CATEGORIES.institucional,
   categoryLabel: "Análisis Institucional",
   date: "14 de septiembre de 2026",
   dateShort: "14 Sep 2026",
@@ -83,7 +105,7 @@ export const SECONDARY_ARTICLES: NewsArticle[] = [
   {
     id: "sentencia-928-tsj",
     slug: "sentencia-928-tsj",
-    category: "doctrina",
+    category: LEGACY_CATEGORIES.doctrina,
     categoryLabel: "Doctrina Legal",
     date: "8 de septiembre de 2026",
     dateShort: "8 Sep 2026",
@@ -110,7 +132,7 @@ export const SECONDARY_ARTICLES: NewsArticle[] = [
   {
     id: "microzonificacion-sismica",
     slug: "microzonificacion-sismica",
-    category: "vuf",
+    category: LEGACY_CATEGORIES.vuf,
     categoryLabel: "Retiros y VUF",
     date: "4 de septiembre de 2026",
     dateShort: "4 Sep 2026",
@@ -137,7 +159,7 @@ export const SECONDARY_ARTICLES: NewsArticle[] = [
   {
     id: "antifragilidad-aula-ciudad",
     slug: "antifragilidad-aula-ciudad",
-    category: "aula",
+    category: LEGACY_CATEGORIES.aula,
     categoryLabel: "Aula Ciudad",
     date: "12 de septiembre de 2026",
     dateShort: "12 Sep 2026",

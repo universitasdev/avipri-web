@@ -6,12 +6,17 @@ const newsPointSchema = z.object({
 });
 
 export const newsInputSchema = z.object({
-  category: z.enum(["institucional", "doctrina", "vuf", "aula"]),
-  categoryLabel: z.string().trim().min(2).max(80),
+  categoryId: z.string().trim().min(1).max(60),
+  // Etiquetas por nombre; el servidor reutiliza las existentes y crea las nuevas.
+  tags: z.array(z.string().trim().min(1).max(60)).max(10).default([]),
+  // Reseña de un artículo de otra revista: los dos campos van juntos.
+  externalSource: z.string().trim().max(120).optional().nullable(),
+  externalUrl: z.string().trim().max(500).optional().nullable(),
   publishedAt: z.string().trim().min(8).max(40),
   title: z.string().trim().min(8).max(300),
   subtitle: z.string().trim().min(8).max(600),
-  lead: z.string().trim().max(6000).optional().nullable(),
+  // Cabe una nota completa (unas 3.000 palabras).
+  lead: z.string().trim().max(20000).optional().nullable(),
   pointsLabel: z.string().trim().max(120).optional().nullable(),
   points: z.array(newsPointSchema).max(12).default([]),
   eventDetailsLabel: z.string().trim().max(120).optional().nullable(),
@@ -103,6 +108,10 @@ export const userUpdateSchema = z.object({
   role: userRoleSchema.optional(),
   active: z.boolean().optional(),
   password: passwordSchema.optional(),
+});
+
+export const categoryCreateSchema = z.object({
+  name: z.string().trim().min(2).max(60),
 });
 
 export const passwordChangeSchema = z.object({

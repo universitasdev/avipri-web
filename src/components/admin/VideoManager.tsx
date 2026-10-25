@@ -51,7 +51,7 @@ export function VideoManager({ videos }: { videos: AdminVideoItem[] }) {
         </Link>
       </div>
 
-      {error ? <Alert>{error}</Alert> : null}
+      {error ? <Alert variant="destructive">{error}</Alert> : null}
 
       <Card>
         <Table>

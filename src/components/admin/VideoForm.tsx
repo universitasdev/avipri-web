@@ -82,7 +82,7 @@ export function VideoForm({ video }: { video?: AdminVideoItem }) {
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={onSubmit}>
-            {error ? <Alert>{error}</Alert> : null}
+            {error ? <Alert variant="destructive">{error}</Alert> : null}
             <div className="space-y-2">
               <Label htmlFor="youtube">Enlace o ID de YouTube</Label>
               <Input

@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { faFilePdf, faImages, faVideo } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { CATEGORY_STYLES } from "@/components/observatorio/categoryStyles";
+import { categoryStyle } from "@/components/observatorio/categoryStyles";
 import type { NewsArticle } from "@/lib/observatorio/content";
 
 const badge =
@@ -10,7 +10,7 @@ const badge =
 
 /** Tarjeta uniforme para "Más noticias"; el listado usa el mosaico. */
 export function NewsCard({ article }: { article: NewsArticle }) {
-  const category = CATEGORY_STYLES[article.category];
+  const category = categoryStyle(article.category);
   const cover = article.image?.src ?? article.video?.poster;
   const photos = article.images?.length ?? 0;
 

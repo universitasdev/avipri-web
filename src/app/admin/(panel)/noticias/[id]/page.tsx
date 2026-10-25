@@ -4,6 +4,8 @@ import { NewsForm } from "@/components/admin/NewsForm";
 import { canEditArticle, canFeatureArticle } from "@/lib/auth/permissions";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/db";
+import { NEWS_INCLUDE } from "@/lib/observatorio/getNews";
+import { getFormTaxonomy } from "@/lib/observatorio/taxonomy";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -15,7 +17,7 @@ export default async function EditNewsPage({ params }: PageProps) {
   const prisma = await getPrisma();
   const article = await prisma.newsArticle.findUnique({
     where: { id },
-    include: { images: { orderBy: { position: "asc" } } },
+    include: NEWS_INCLUDE,
   });
   if (!article) notFound();
   if (!canEditArticle(admin, article)) redirect("/admin/noticias");
@@ -24,10 +26,14 @@ export default async function EditNewsPage({ params }: PageProps) {
     <Suspense fallback={<p className="text-sm text-brand-muted">Cargando noticia…</p>}>
       <NewsForm
         canFeature={canFeatureArticle(admin)}
+        {...(await getFormTaxonomy())}
         article={{
           id: article.id,
-          category: article.category,
-          categoryLabel: article.categoryLabel,
+          categoryId: article.categoryId,
+          categoryName: article.category.name,
+          tags: article.tags.map(({ tag }) => tag.name),
+          externalSource: article.externalSource,
+          externalUrl: article.externalUrl,
           publishedAt: article.publishedAt.toISOString(),
           title: article.title,
           subtitle: article.subtitle,

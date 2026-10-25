@@ -17,8 +17,8 @@ function serializeArticle(article: NewsArticle, featured: boolean) {
   return {
     id: article.id,
     slug: article.slug,
-    category: article.category,
-    categoryLabel: article.categoryLabel,
+    // Las categorías las crea la migración; aquí se enlazan por su slug.
+    category: { connect: { slug: article.category.slug } },
     publishedAt: new Date(NEWS_DATES[article.id] ?? "2026-09-01T12:00:00.000Z"),
     title: article.title,
     subtitle: article.subtitle,

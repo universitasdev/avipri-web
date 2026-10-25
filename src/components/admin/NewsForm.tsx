@@ -4,8 +4,11 @@ import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, ChevronDown } from "lucide-react";
-import { Alert } from "@/components/admin/ui/alert";
+import { ArrowLeft, ArrowRight, ChevronDown, CircleAlert, Eye } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/admin/ui/alert";
+import { Checkbox } from "@/components/admin/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/admin/ui/collapsible";
+import { ToggleGroup, ToggleGroupItem } from "@/components/admin/ui/toggle-group";
 import { Button, buttonVariants } from "@/components/admin/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/admin/ui/card";
 import { DatePicker } from "@/components/admin/ui/date-picker";
@@ -33,6 +36,11 @@ import {
   type NewsDocumentDraft,
 } from "@/components/admin/DocumentUpload";
 import { VideoUpload, uploadNewsVideo } from "@/components/admin/VideoUpload";
+import { CategoryPicker, type CategoryOption } from "@/components/admin/CategoryPicker";
+import { TagInput } from "@/components/admin/TagInput";
+import { NewsPreviewOverlay } from "@/components/admin/NewsPreviewOverlay";
+import { backToNewsList } from "@/components/admin/NewsListControls";
+import type { NewsArticle } from "@/lib/observatorio/content";
 import { extractYoutubeId } from "@/lib/admin/schemas";
 import { adminFetch, readError } from "@/components/admin/admin-fetch";
 import { formatBytes } from "@/lib/format";
@@ -44,13 +52,6 @@ type SavePhase = "idle" | "uploading" | "saving";
 type MediaType = "IMAGE" | "VIDEO";
 type VideoSource = "YOUTUBE" | "FILE";
 type StepIssue = { field?: string; message: string };
-
-const CATEGORIES = [
-  { id: "institucional", label: "Análisis Institucional" },
-  { id: "doctrina", label: "Doctrina Legal" },
-  { id: "vuf", label: "Retiros y VUF" },
-  { id: "aula", label: "Aula Ciudad" },
-] as const;
 
 // El formulario se recorre de a un paso para no abrumar: una cosa a la vez.
 const STEPS = ["Texto", "Fotos o video", "Documento PDF", "Revisar y publicar"];
@@ -118,29 +119,21 @@ function ChoiceGroup<T extends string>({
   options: { value: T; label: string }[];
 }) {
   return (
-    <div role="radiogroup" className="inline-flex flex-wrap rounded-lg border border-brand-border bg-slate-50 p-1">
+    <ToggleGroup
+      type="single"
+      aria-label={name}
+      value={value}
+      // Siempre queda una opción elegida: un segundo clic en la actual no la desmarca.
+      onValueChange={(next) => {
+        if (next) onChange(next as T);
+      }}
+    >
       {options.map((option) => (
-        <label
-          key={option.value}
-          className={cn(
-            "cursor-pointer rounded-md px-5 py-2.5 text-base font-medium transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-navy/40",
-            value === option.value
-              ? "bg-brand-navy text-white shadow-sm"
-              : "text-slate-600 hover:text-brand-navy",
-          )}
-        >
-          <input
-            type="radio"
-            name={name}
-            value={option.value}
-            checked={value === option.value}
-            onChange={() => onChange(option.value)}
-            className="sr-only"
-          />
+        <ToggleGroupItem key={option.value} value={option.value}>
           {option.label}
-        </label>
+        </ToggleGroupItem>
       ))}
-    </div>
+    </ToggleGroup>
   );
 }
 
@@ -188,10 +181,14 @@ export function NewsForm({
   article,
   today,
   canFeature = false,
+  categories,
+  tagSuggestions,
 }: {
   article?: AdminNewsItem;
   today?: string;
   canFeature?: boolean;
+  categories: CategoryOption[];
+  tagSuggestions: string[];
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -205,6 +202,15 @@ export function NewsForm({
   const [dirty, setDirty] = useState(false);
   const [phase, setPhase] = useState<SavePhase>("idle");
   const [willPublish, setWillPublish] = useState(article?.published ?? true);
+  // Categorías: las que llegan del servidor más las que se creen con «+» en este formulario.
+  const [categoryOptions, setCategoryOptions] = useState(categories);
+  const [categoryId, setCategoryId] = useState(article?.categoryId ?? "");
+  const [tags, setTags] = useState<string[]>(article?.tags ?? []);
+  const [isReview, setIsReview] = useState(Boolean(article?.externalUrl));
+  const [externalSource, setExternalSource] = useState(article?.externalSource ?? "");
+  const [externalUrl, setExternalUrl] = useState(article?.externalUrl ?? "");
+  // Noticia armada con lo que hay en el formulario, para la vista previa (sin guardar).
+  const [preview, setPreview] = useState<NewsArticle | null>(null);
   const [points, setPoints] = useState<Point[]>(() => parsePoints(article?.pointsJson ?? "[]"));
   const [mediaType, setMediaType] = useState<MediaType>(article?.mediaType ?? "IMAGE");
   const [videoSource, setVideoSource] = useState<VideoSource>(
@@ -267,6 +273,21 @@ export function NewsForm({
       if (!fieldValue("publishedAt")) {
         found.push({ field: "publishedAt", message: "Elige la fecha de publicación." });
       }
+      if (!categoryId) {
+        found.push({
+          field: "categoryId",
+          message: "Elige una categoría de la lista, o crea una nueva con «+ Nueva categoría».",
+        });
+      }
+      if (isReview && !externalSource.trim()) {
+        found.push({ field: "externalSource", message: "Escribe el nombre de la revista de la reseña." });
+      }
+      if (isReview && !/^https:\/\/\S+\.\S+/.test(externalUrl.trim())) {
+        found.push({
+          field: "externalUrl",
+          message: "Pega el enlace completo al artículo en la revista (empieza con https://).",
+        });
+      }
     }
     if (index === 1 && mediaType === "VIDEO") {
       if (videoSource === "YOUTUBE" && !youtubePreviewId) {
@@ -302,10 +323,6 @@ export function NewsForm({
         title: fieldValue("title"),
         subtitle: fieldValue("subtitle"),
         publishedAt: fieldValue("publishedAt"),
-        categoryLabel:
-          fieldValue("categoryLabel") ||
-          CATEGORIES.find((item) => item.id === fieldValue("category"))?.label ||
-          "",
         lead: fieldValue("lead"),
       });
     }
@@ -323,6 +340,84 @@ export function NewsForm({
       return;
     }
     goTo(step + 1);
+  }
+
+  /**
+   * Arma la noticia con lo que hay en el formulario, tal como la mostraría el sitio, para
+   * verla antes de guardar. Las fotos y el PDF nuevos se muestran desde el navegador.
+   */
+  function openPreview() {
+    const category = categoryOptions.find((item) => item.id === categoryId);
+    const publishedAt = fieldValue("publishedAt") || today || new Date().toISOString().slice(0, 10);
+    const date = new Date(`${publishedAt}T12:00:00`);
+    const title = fieldValue("title") || "Título de la noticia";
+    const images = photos.map((photo) => ({ src: photo.preview, alt: photo.alt.trim() || title }));
+    const posterInput = formRef.current?.querySelector<HTMLInputElement>('[name="imageFile"]');
+    const posterFile = posterInput?.files?.[0];
+    const poster = posterFile ? URL.createObjectURL(posterFile) : fieldValue("imageSrc") || undefined;
+    const videoInput = formRef.current?.querySelector<HTMLInputElement>('[name="videoFile"]');
+    const videoFile = videoInput?.files?.[0];
+    const videoSrc = videoFile ? URL.createObjectURL(videoFile) : fieldValue("videoFileSrc");
+    const videoTitle = fieldValue("imageAlt") || title;
+    const validPoints = points.filter((point) => point.title.trim() && point.body.trim());
+
+    setPreview({
+      id: article?.id ?? "vista-previa",
+      slug: "vista-previa",
+      category: category ?? { slug: "sin-categoria", name: "Sin categoría", color: "slate" },
+      categoryLabel: category?.name ?? "Sin categoría",
+      tags: tags.map((name) => ({ name, slug: name })),
+      external:
+        isReview && externalSource.trim() && externalUrl.trim()
+          ? { source: externalSource.trim(), url: externalUrl.trim() }
+          : undefined,
+      isoDate: date.toISOString(),
+      date: new Intl.DateTimeFormat("es-VE", { day: "numeric", month: "long", year: "numeric" }).format(date),
+      dateShort: new Intl.DateTimeFormat("es-VE", { day: "numeric", month: "short", year: "numeric" }).format(date),
+      title,
+      subtitle: fieldValue("subtitle") || "Subtítulo de la noticia",
+      lead: fieldValue("lead") || undefined,
+      pointsLabel: fieldValue("pointsLabel") || undefined,
+      points: validPoints,
+      cta: fieldValue("cta") || undefined,
+      href: fieldValue("href") || undefined,
+      images: mediaType === "IMAGE" ? images : [],
+      image: mediaType === "IMAGE" ? images[0] : undefined,
+      video:
+        mediaType !== "VIDEO"
+          ? undefined
+          : videoSource === "YOUTUBE" && youtubePreviewId
+            ? {
+                kind: "youtube",
+                youtubeId: youtubePreviewId,
+                title: videoTitle,
+                poster: poster ?? `https://i.ytimg.com/vi/${youtubePreviewId}/hqdefault.jpg`,
+              }
+            : videoSource === "FILE" && videoSrc
+              ? { kind: "file", src: videoSrc, title: videoTitle, poster }
+              : undefined,
+      attachment: pdfDraft
+        ? {
+            src: pdfDraft.file ? URL.createObjectURL(pdfDraft.file) : pdfDraft.src ?? "",
+            name: pdfDraft.name || "Documento",
+            bytes: pdfDraft.bytes,
+          }
+        : undefined,
+    });
+  }
+
+  function closePreview() {
+    setPreview((current) => {
+      // Se liberan las direcciones temporales creadas solo para la vista previa.
+      const temporary = [current?.attachment?.src, current?.video && "src" in current.video ? current.video.src : undefined];
+      if (current?.video?.poster?.startsWith("blob:")) temporary.push(current.video.poster);
+      for (const url of temporary) {
+        if (url?.startsWith("blob:") && !photos.some((photo) => photo.preview === url)) {
+          URL.revokeObjectURL(url);
+        }
+      }
+      return null;
+    });
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -346,7 +441,6 @@ export function NewsForm({
 
     setError(null);
     const form = new FormData(event.currentTarget);
-    const category = String(form.get("category"));
     const imageFile = form.get("imageFile");
     let imageSrc = String(form.get("imageSrc") ?? "") || null;
     const videoFile = form.get("videoFile");
@@ -420,11 +514,10 @@ export function NewsForm({
     setUploadLabel("Guardando la noticia…");
     setProgress(undefined);
     const payload = {
-      category,
-      categoryLabel:
-        String(form.get("categoryLabel") ?? "") ||
-        CATEGORIES.find((item) => item.id === category)?.label ||
-        category,
+      categoryId,
+      tags,
+      externalSource: isReview ? externalSource.trim() : null,
+      externalUrl: isReview ? externalUrl.trim() : null,
       publishedAt: `${String(form.get("publishedAt"))}T12:00:00.000Z`,
       title: String(form.get("title") ?? ""),
       subtitle: String(form.get("subtitle") ?? ""),
@@ -466,7 +559,8 @@ export function NewsForm({
     setDirty(false);
     // De vuelta al listado, donde un aviso fijo confirma el resultado.
     const id = data.article?.id ?? article?.id ?? "";
-    router.push(`/admin/noticias?estado=${isEdit ? "actualizada" : "creada"}&id=${id}`);
+    // Vuelve a la misma página y filtros del listado desde donde se entró.
+    router.push(backToNewsList({ estado: isEdit ? "actualizada" : "creada", id }));
     router.refresh();
   }
 
@@ -501,16 +595,25 @@ export function NewsForm({
       <Stepper steps={STEPS} current={step} reachable={reached} onSelect={goTo} />
 
       {issues.length > 0 ? (
-        <Alert className="text-base">
-          <p className="font-semibold">Falta completar algo en este paso:</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            {issues.map((issue) => (
-              <li key={issue.message}>{issue.message}</li>
-            ))}
-          </ul>
+        <Alert variant="destructive">
+          <CircleAlert aria-hidden="true" />
+          <AlertTitle>Falta completar algo en este paso</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc space-y-1 pl-5">
+              {issues.map((issue) => (
+                <li key={issue.message}>{issue.message}</li>
+              ))}
+            </ul>
+          </AlertDescription>
         </Alert>
       ) : null}
-      {error ? <Alert className="text-base">{error}</Alert> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <CircleAlert aria-hidden="true" />
+          <AlertTitle>No se pudo completar</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
 
       <form
         ref={formRef}
@@ -576,23 +679,85 @@ export function NewsForm({
                 />
               </Field>
               <Field
-                id="category"
+                id="categoryId"
                 label="Categoría"
-                hint="Tipo de noticia en el Observatorio. Cambia el color de la etiqueta."
+                hint="El tema principal de la noticia; una sola. Si no está en la lista, créala con «+ Nueva categoría»."
+                className="md:col-span-2"
               >
-                <select
-                  id="category"
-                  name="category"
-                  defaultValue={article?.category ?? "institucional"}
-                  className="flex h-12 w-full rounded-md border border-brand-border bg-white px-3 text-base"
-                >
-                  {CATEGORIES.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                <CategoryPicker
+                  id="categoryId"
+                  categories={categoryOptions}
+                  value={categoryId}
+                  onChange={change(setCategoryId)}
+                  onCreated={(created) =>
+                    setCategoryOptions((current) =>
+                      current.some((item) => item.id === created.id)
+                        ? current
+                        : [...current, created].sort((a, b) => a.name.localeCompare(b.name, "es")),
+                    )
+                  }
+                  invalid={issues.some((issue) => issue.field === "categoryId")}
+                />
               </Field>
+              <Field
+                id="tags"
+                label="Etiquetas (opcional)"
+                hint="Palabras clave para cruzar temas, sin orden ni jerarquía: lugares, instituciones, temas. Ejemplos: Catedral, UCAT, zonificación. Hasta 10."
+                className="md:col-span-2"
+              >
+                <TagInput id="tags" value={tags} onChange={change(setTags)} suggestions={tagSuggestions} />
+              </Field>
+              <div className="space-y-4 md:col-span-2">
+                <label className="flex cursor-pointer items-start gap-4 rounded-lg border border-brand-border p-4 has-[[data-state=checked]]:border-brand-orange has-[[data-state=checked]]:bg-amber-50">
+                  <Checkbox
+                    className="mt-0.5"
+                    checked={isReview}
+                    onCheckedChange={(checked) => change(setIsReview)(checked === true)}
+                  />
+                  <span>
+                    <span className="text-base font-semibold text-brand-navy">
+                      Es una reseña de un artículo publicado en otra revista
+                    </span>
+                    <span className="mt-1 block text-base leading-relaxed text-brand-muted">
+                      Por ejemplo, un artículo de la RDU. El sitio mostrará tu reseña con un botón para
+                      leer el artículo completo en la web de la revista.
+                    </span>
+                  </span>
+                </label>
+                {isReview ? (
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <Field
+                      id="externalSource"
+                      label="Nombre de la revista"
+                      hint="Corto, como se conoce: por ejemplo «RDU»."
+                    >
+                      <Input
+                        id="externalSource"
+                        value={externalSource}
+                        maxLength={120}
+                        onChange={(event) => change(setExternalSource)(event.target.value)}
+                        aria-invalid={issues.some((issue) => issue.field === "externalSource") || undefined}
+                        className="h-12 text-base aria-invalid:border-red-500"
+                      />
+                    </Field>
+                    <Field
+                      id="externalUrl"
+                      label="Enlace al artículo"
+                      hint="Copia la dirección del artículo desde la web de la revista y pégala aquí."
+                    >
+                      <Input
+                        id="externalUrl"
+                        value={externalUrl}
+                        maxLength={500}
+                        placeholder="https://"
+                        onChange={(event) => change(setExternalUrl)(event.target.value)}
+                        aria-invalid={issues.some((issue) => issue.field === "externalUrl") || undefined}
+                        className="h-12 text-base aria-invalid:border-red-500"
+                      />
+                    </Field>
+                  </div>
+                ) : null}
+              </div>
               <Field
                 id="lead"
                 label="Texto de la noticia (opcional)"
@@ -610,33 +775,20 @@ export function NewsForm({
             </CardContent>
           </Card>
 
-          <details className="group rounded-xl border border-brand-border bg-white">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 text-lg font-semibold text-brand-navy marker:hidden">
+          <Collapsible className="group rounded-xl border border-brand-border bg-white">
+            <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between gap-4 rounded-xl p-5 text-left text-lg font-semibold text-brand-navy outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/30">
               <span>
                 Opciones adicionales
                 <span className="mt-1 block text-base font-normal text-brand-muted">
-                  Puntos de análisis, botón con enlace y texto de la etiqueta. Puedes saltarlas.
+                  Puntos de análisis y botón con enlace. Puedes saltarlas.
                 </span>
               </span>
               <ChevronDown
-                className="size-6 shrink-0 transition-transform group-open:rotate-180"
+                className="size-6 shrink-0 transition-transform group-data-[state=open]:rotate-180"
                 aria-hidden="true"
               />
-            </summary>
-            <div className="space-y-8 border-t border-brand-border p-5">
-              <Field
-                id="categoryLabel"
-                label="Texto de la etiqueta"
-                hint="Palabras de la pastilla de color, por ejemplo «Análisis Institucional». Normalmente no hay que tocarlo."
-              >
-                <Input
-                  id="categoryLabel"
-                  name="categoryLabel"
-                  defaultValue={article?.categoryLabel ?? "Análisis Institucional"}
-                  maxLength={80}
-                />
-              </Field>
-
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-8 border-t border-brand-border p-5">
               <div className="space-y-4">
                 <Field
                   id="pointsLabel"
@@ -714,8 +866,8 @@ export function NewsForm({
                   <Input id="href" name="href" defaultValue={article?.href ?? ""} placeholder="https://" />
                 </Field>
               </div>
-            </div>
-          </details>
+            </CollapsibleContent>
+          </Collapsible>
         </section>
 
         <section hidden={step !== 1} aria-label="Paso 2: Fotos o video">
@@ -856,8 +1008,17 @@ export function NewsForm({
                   {summary.subtitle || "—"}
                 </SummaryRow>
                 <SummaryRow label="Fecha y categoría" onChange={() => goTo(0)}>
-                  {formatDay(summary.publishedAt ?? "")} · {summary.categoryLabel}
+                  {formatDay(summary.publishedAt ?? "")} ·{" "}
+                  {categoryOptions.find((item) => item.id === categoryId)?.name ?? "Sin categoría"}
                 </SummaryRow>
+                <SummaryRow label="Etiquetas" onChange={() => goTo(0)}>
+                  {tags.length > 0 ? tags.join(" · ") : "Sin etiquetas"}
+                </SummaryRow>
+                {isReview ? (
+                  <SummaryRow label="Reseña de un artículo externo" onChange={() => goTo(0)}>
+                    {externalSource} · <span className="break-all">{externalUrl}</span>
+                  </SummaryRow>
+                ) : null}
                 <SummaryRow label="Texto de la noticia" onChange={() => goTo(0)}>
                   {summary.lead?.trim()
                     ? `${summary.lead.trim().slice(0, 160)}${summary.lead.trim().length > 160 ? "…" : ""}`
@@ -901,13 +1062,12 @@ export function NewsForm({
               <CardTitle>¿Quién la puede ver?</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              <label className="flex cursor-pointer items-start gap-4 rounded-lg border border-brand-border p-4 has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50">
-                <input
-                  type="checkbox"
+              <label className="flex cursor-pointer items-start gap-4 rounded-lg border border-brand-border p-4 has-[[data-state=checked]]:border-emerald-400 has-[[data-state=checked]]:bg-emerald-50">
+                <Checkbox
                   name="published"
-                  className="mt-1 size-6 accent-emerald-600"
+                  className="mt-0.5 data-[state=checked]:border-emerald-600 data-[state=checked]:bg-emerald-600"
                   checked={willPublish}
-                  onChange={(event) => setWillPublish(event.target.checked)}
+                  onCheckedChange={(checked) => change(setWillPublish)(checked === true)}
                 />
                 <span>
                   <span className="text-base font-semibold text-brand-navy">Visible en el sitio</span>
@@ -918,12 +1078,12 @@ export function NewsForm({
                 </span>
               </label>
               {canFeature ? (
-                <label className="flex cursor-pointer items-start gap-4 rounded-lg border border-brand-border p-4 has-[:checked]:border-amber-400 has-[:checked]:bg-amber-50">
-                  <input
-                    type="checkbox"
+                <label className="flex cursor-pointer items-start gap-4 rounded-lg border border-brand-border p-4 has-[[data-state=checked]]:border-amber-400 has-[[data-state=checked]]:bg-amber-50">
+                  <Checkbox
                     name="featured"
-                    className="mt-1 size-6 accent-amber-500"
+                    className="mt-0.5 data-[state=checked]:border-amber-500 data-[state=checked]:bg-amber-500"
                     defaultChecked={article?.featured ?? false}
+                    onCheckedChange={() => setDirty(true)}
                   />
                   <span>
                     <span className="text-base font-semibold text-brand-navy">Destacada</span>
@@ -944,7 +1104,7 @@ export function NewsForm({
           </Card>
         </section>
 
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-brand-border bg-white/95 px-4 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur supports-[backdrop-filter]:bg-white/85 md:pl-72">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-brand-border bg-white/95 px-4 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur transition-[left] duration-200 ease-linear supports-[backdrop-filter]:bg-white/85 md:left-(--sidebar-width) md:group-has-[[data-collapsible=icon]]/sidebar-wrapper:left-(--sidebar-width-icon)">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
             {dirty ? (
               <AlertDialog>
@@ -964,7 +1124,7 @@ export function NewsForm({
                     <AlertDialogCancel>Seguir editando</AlertDialogCancel>
                     <AlertDialogAction
                       className="bg-red-700 text-white hover:bg-red-800"
-                      onClick={() => router.push("/admin/noticias")}
+                      onClick={() => router.push(backToNewsList())}
                     >
                       Sí, salir sin guardar
                     </AlertDialogAction>
@@ -972,11 +1132,22 @@ export function NewsForm({
                 </AlertDialogContent>
               </AlertDialog>
             ) : (
-              <Link href="/admin/noticias" className={cn(buttonVariants({ variant: "ghost", size: "lg" }))}>
+              <Link
+                href="/admin/noticias"
+                onClick={(event) => {
+                  event.preventDefault();
+                  router.push(backToNewsList());
+                }}
+                className={cn(buttonVariants({ variant: "ghost", size: "lg" }))}
+              >
                 Cancelar
               </Link>
             )}
             <div className="flex flex-wrap gap-3">
+              <Button variant="outline" size="lg" disabled={pending} onClick={openPreview}>
+                <Eye aria-hidden="true" />
+                Vista previa
+              </Button>
               {step > 0 ? (
                 <Button variant="outline" size="lg" disabled={pending} onClick={() => goTo(step - 1)}>
                   <ArrowLeft aria-hidden="true" />
@@ -1012,25 +1183,20 @@ export function NewsForm({
         </div>
       </form>
 
-      {pending ? (
-        // Mientras sube y guarda: aviso grande que tapa la pantalla para que nadie la cierre.
-        <div
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby="saving-title"
-          className="fixed inset-0 z-50 grid place-items-center bg-brand-navy/40 p-4 backdrop-blur-sm"
-        >
-          <div className="w-full max-w-md space-y-5 rounded-2xl bg-white p-8 text-center shadow-2xl">
-            <p id="saving-title" className="text-xl font-semibold text-brand-navy">
-              {uploadLabel || "Preparando…"}
-            </p>
-            <Progress value={progress} aria-label="Avance" />
-            <p className="text-base text-brand-muted">
+      {preview ? <NewsPreviewOverlay article={preview} onClose={closePreview} /> : null}
+
+      {/* Mientras sube y guarda: aviso grande (AlertDialog) que no se puede cerrar hasta terminar. */}
+      <AlertDialog open={pending}>
+        <AlertDialogContent onEscapeKeyDown={(event) => event.preventDefault()} className="text-center">
+          <AlertDialogHeader className="items-center text-center sm:text-center">
+            <AlertDialogTitle className="text-xl">{uploadLabel || "Preparando…"}</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
               No cierres esta página ni apagues el computador hasta que termine.
-            </p>
-          </div>
-        </div>
-      ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Progress value={progress} aria-label="Avance" />
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

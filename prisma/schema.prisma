@@ -53,8 +53,11 @@ model NewsArticle {
   id                 String   @id @default(cuid())
   // Dirección pública de la noticia: /observatorio/<slug>. No cambia al editar el título.
   slug               String   @unique
-  category           String
-  categoryLabel      String
+  // Una sola categoría por noticia; las crea el propio equipo editorial.
+  categoryId         String
+  category           Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  // Etiquetas libres, varias por noticia y sin jerarquía.
+  tags               NewsTag[]
   publishedAt        DateTime
   title              String
   subtitle           String
@@ -79,6 +82,9 @@ model NewsArticle {
   attachmentSrc      String?
   attachmentName     String?
   attachmentBytes    Int?
+  // Reseña de un artículo publicado en otra revista (por ejemplo, RDU): se enlaza a su web.
+  externalSource     String?
+  externalUrl        String?
   featured           Boolean  @default(false)
   published          Boolean  @default(true)
   createdById        String?
@@ -89,6 +95,37 @@ model NewsArticle {
   updatedAt          DateTime @updatedAt
 
   @@index([createdById])
+  @@index([categoryId])
+}
+
+model Category {
+  id        String        @id @default(cuid())
+  slug      String        @unique
+  name      String        @unique
+  // Clave de la paleta de marca (navy, terracotta, territorial, orange, …).
+  color     String
+  // Ícono propio de las categorías originales; las nuevas usan uno genérico.
+  icon      String?
+  createdAt DateTime      @default(now())
+  news      NewsArticle[]
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  name      String
+  createdAt DateTime  @default(now())
+  news      NewsTag[]
+}
+
+model NewsTag {
+  articleId String
+  article   NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@index([tagId])
 }
 
 model NewsImage {

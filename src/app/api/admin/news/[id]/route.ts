@@ -6,6 +6,8 @@ import { newsInputSchema, parsePublishedAt } from "@/lib/admin/schemas";
 import { parseJsonBody } from "@/lib/admin/safe";
 import { buildNewsData } from "@/lib/admin/news-input";
 import { canEditArticle, canFeatureArticle } from "@/lib/auth/permissions";
+import { resolveTagIds } from "@/lib/observatorio/taxonomy";
+import { NEWS_INCLUDE } from "@/lib/observatorio/getNews";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -56,6 +58,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: built.error }, { status: 400 });
   }
 
+  if (!(await prisma.category.findUnique({ where: { id: built.data.categoryId }, select: { id: true } }))) {
+    return NextResponse.json({ error: "Elige una categoría de la lista." }, { status: 400 });
+  }
+  const tagIds = await resolveTagIds(prisma, built.tags);
+
   // Un editor no puede cambiar la destacada: se conserva el valor actual.
   const featured = canFeatureArticle(auth.admin) ? parsed.data.featured : existing.featured;
   if (featured) {
@@ -65,7 +72,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     });
   }
 
-  // Las fotos se reemplazan completas: Prisma hace el borrado y la creación en una transacción.
+  // Fotos y etiquetas se reemplazan completas: Prisma lo hace en una sola transacción.
   const article = await prisma.newsArticle.update({
     where: { id },
     data: {
@@ -73,8 +80,9 @@ export async function PATCH(request: Request, context: RouteContext) {
       featured,
       updatedById: auth.admin.id,
       images: { deleteMany: {}, create: built.images },
+      tags: { deleteMany: {}, create: tagIds.map((tagId) => ({ tagId })) },
     },
-    include: { images: { orderBy: { position: "asc" } } },
+    include: NEWS_INCLUDE,
   });
 
   revalidateNews();

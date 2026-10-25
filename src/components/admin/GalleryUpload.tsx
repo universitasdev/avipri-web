@@ -4,10 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/admin/ui/button";
 import { Input } from "@/components/admin/ui/input";
+import { MIN_RECOMMENDED_WIDTH, prepareImage } from "@/components/admin/image-resize";
 
 export const MAX_PHOTOS = 12;
-const MAX_BYTES = 3 * 1024 * 1024;
-const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
 /** Una foto de la galería: ya guardada (src) o recién elegida (file), con su vista previa. */
 export type GalleryPhoto = {
@@ -16,6 +15,8 @@ export type GalleryPhoto = {
   file?: File;
   preview: string;
   alt: string;
+  /** Más angosta que lo recomendado: se avisa, pero se sube igual. */
+  small?: boolean;
 };
 
 export function photosFromImages(images: { src: string; alt: string | null }[]): GalleryPhoto[] {
@@ -44,6 +45,7 @@ export function GalleryUpload({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
 
   // Al salir de la página se liberan las vistas previas que siguen en uso.
   const latest = useRef(photos);
@@ -52,32 +54,30 @@ export function GalleryUpload({
   }, [photos]);
   useEffect(() => () => latest.current.forEach((photo) => revokeIfBlob(photo.preview)), []);
 
-  function addFiles(files: File[]) {
+  // Cada foto se achica y comprime en el navegador antes de agregarla (ver prepareImage).
+  async function addFiles(files: File[]) {
     const room = MAX_PHOTOS - photos.length;
     const valid: GalleryPhoto[] = [];
-    let rejected = 0;
-    for (const file of files) {
-      if ((file.type && !ALLOWED.includes(file.type)) || file.size > MAX_BYTES) {
-        rejected++;
-        continue;
+    const problems: string[] = [];
+    setPreparing(true);
+    for (const original of files.slice(0, room)) {
+      try {
+        const prepared = await prepareImage(original);
+        valid.push({
+          key: `${original.name}-${original.size}-${original.lastModified}-${Math.random()}`,
+          file: prepared.file,
+          preview: URL.createObjectURL(prepared.file),
+          alt: "",
+          small: prepared.small,
+        });
+      } catch (error) {
+        problems.push(error instanceof Error ? error.message : `No se pudo usar «${original.name}».`);
       }
-      if (valid.length >= room) break;
-      valid.push({
-        key: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`,
-        file,
-        preview: URL.createObjectURL(file),
-        alt: "",
-      });
     }
-    const overflow = files.length - rejected - valid.length;
-    setLocalError(
-      [
-        rejected > 0 ? `${rejected} archivo(s) no son JPG, PNG o WebP de hasta 3 MB.` : null,
-        overflow > 0 ? `Solo caben ${MAX_PHOTOS} fotos; ${overflow} no se agregaron.` : null,
-      ]
-        .filter(Boolean)
-        .join(" ") || null,
-    );
+    setPreparing(false);
+    const overflow = files.length - room;
+    if (overflow > 0) problems.push(`Solo caben ${MAX_PHOTOS} fotos; ${overflow} no se agregaron.`);
+    setLocalError(problems.length > 0 ? problems.join(" ") : null);
     if (valid.length > 0) onChange([...photos, ...valid]);
   }
 
@@ -107,8 +107,9 @@ export function GalleryUpload({
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={(event) => {
-          addFiles(Array.from(event.target.files ?? []));
+          const files = Array.from(event.target.files ?? []);
           event.target.value = "";
+          void addFiles(files);
         }}
       />
 
@@ -124,6 +125,12 @@ export function GalleryUpload({
                 </span>
               </div>
               <div className="space-y-2 p-3">
+                {photo.small ? (
+                  <p className="rounded-md bg-amber-50 px-2 py-1.5 text-sm text-amber-900">
+                    Foto pequeña (menos de {MIN_RECOMMENDED_WIDTH} px de ancho): puede verse borrosa.
+                    Si tienes una más grande, úsala.
+                  </p>
+                ) : null}
                 <Input
                   value={photo.alt}
                   onChange={(event) => setAlt(i, event.target.value)}
@@ -183,11 +190,15 @@ export function GalleryUpload({
       <Button
         variant="outline"
         size="lg"
-        disabled={photos.length >= MAX_PHOTOS}
+        disabled={photos.length >= MAX_PHOTOS || preparing}
         onClick={() => inputRef.current?.click()}
       >
         <ImagePlus aria-hidden="true" />
-        {photos.length === 0 ? "Elegir fotos" : "Agregar más fotos"}
+        {preparing
+          ? "Preparando las fotos…"
+          : photos.length === 0
+            ? "Elegir fotos"
+            : "Agregar más fotos"}
       </Button>
     </div>
   );

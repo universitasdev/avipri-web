@@ -21,12 +21,26 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/admin/ui/table";
 import { adminFetch, readError } from "@/components/admin/admin-fetch";
 import { ResultBanner } from "@/components/admin/ui/result-banner";
+import {
+  NewsFilters,
+  NewsPagination,
+  newsListHref,
+  rememberNewsList,
+  type ListFilter,
+} from "@/components/admin/NewsListControls";
+
+const PAGE_SIZE = 10;
+
+type OutcomeArticle = { id: string; slug: string; title: string; published: boolean };
 import { cn } from "@/lib/utils";
 
 export type AdminNewsItem = {
   id: string;
-  category: string;
-  categoryLabel: string;
+  categoryId: string;
+  categoryName: string;
+  tags: string[];
+  externalSource: string | null;
+  externalUrl: string | null;
   publishedAt: string;
   title: string;
   subtitle: string;
@@ -73,7 +87,7 @@ function OutcomeBanner({
   onClose,
 }: {
   outcome: Outcome;
-  article?: AdminNewsListItem;
+  article?: OutcomeArticle | null;
   onClose: () => void;
 }) {
   const link = article ? (
@@ -140,7 +154,26 @@ function OutcomeBanner({
   );
 }
 
-export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
+export function NewsManager({
+  articles,
+  outcomeArticle,
+  filter,
+  pageCount,
+  matching,
+  counts,
+  authors,
+  currentUserId,
+}: {
+  articles: AdminNewsListItem[];
+  /** La noticia recién publicada o guardada (puede no estar en esta página). */
+  outcomeArticle: OutcomeArticle | null;
+  filter: ListFilter;
+  pageCount: number;
+  matching: number;
+  counts: Record<ListFilter["status"], number>;
+  authors: { id: string; name: string; count: number }[];
+  currentUserId: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -151,10 +184,14 @@ export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
     return { kind: estado, id: searchParams.get("id") ?? undefined };
   });
 
-  // Se limpia la dirección para que el aviso no vuelva a salir al recargar.
   useEffect(() => {
-    if (searchParams.get("estado")) router.replace("/admin/noticias", { scroll: false });
-  }, [searchParams, router]);
+    rememberNewsList(newsListHref(filter));
+  }, [filter]);
+
+  // Se limpia la dirección (sin perder los filtros) para que el aviso no vuelva a salir al recargar.
+  useEffect(() => {
+    if (searchParams.get("estado")) router.replace(newsListHref(filter), { scroll: false });
+  }, [searchParams, router, filter]);
 
   async function remove(id: string, title: string) {
     setDeletingId(id);
@@ -168,12 +205,16 @@ export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
     router.refresh();
   }
 
-  const outcomeArticle = outcome?.id ? articles.find((article) => article.id === outcome.id) : undefined;
+  const filtered = filter.status !== "todas" || Boolean(filter.author);
 
   return (
     <div className="space-y-6">
       {outcome ? (
-        <OutcomeBanner outcome={outcome} article={outcomeArticle} onClose={() => setOutcome(null)} />
+        <OutcomeBanner
+          outcome={outcome}
+          article={outcome.id && outcomeArticle?.id === outcome.id ? outcomeArticle : undefined}
+          onClose={() => setOutcome(null)}
+        />
       ) : null}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -187,6 +228,8 @@ export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
         </Link>
       </div>
 
+      <NewsFilters filter={filter} counts={counts} authors={authors} currentUserId={currentUserId} />
+
       <Card>
         <Table>
           <TableHeader>
@@ -199,9 +242,18 @@ export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {articles.length === 0 ? (
+            {articles.length === 0 && filtered ? (
               <TableRow>
-                <TableCell colSpan={5}className="py-10 text-center text-sm text-brand-muted">
+                <TableCell colSpan={5} className="py-10 text-center text-base text-brand-muted">
+                  No hay noticias con estos filtros.{" "}
+                  <Link href="/admin/noticias" className="font-medium text-brand-navy underline">
+                    Ver todas las noticias
+                  </Link>
+                </TableCell>
+              </TableRow>
+            ) : articles.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="py-10 text-center text-base text-brand-muted">
                   Todavía no hay noticias. Empieza con{" "}
                   <Link href="/admin/noticias/nueva" className="font-medium text-brand-navy underline">
                     Nueva noticia
@@ -221,7 +273,7 @@ export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
                       {toDateInput(article.publishedAt)}
                     </p>
                   </TableCell>
-                  <TableCell>{article.categoryLabel}</TableCell>
+                  <TableCell>{article.categoryName}</TableCell>
                   <TableCell className="text-sm text-brand-muted">
                     {article.authorName ?? "Equipo editorial"}
                   </TableCell>
@@ -233,19 +285,27 @@ export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
                   </TableCell>
                   <TableCell className="text-right">
                     {article.canEdit ? (
-                      <>
+                      <div className="flex flex-wrap justify-end gap-2">
                         <Link
                           href={`/admin/noticias/${article.id}`}
-                          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                          className={cn(buttonVariants({ variant: "outline" }))}
                         >
                           Editar
                         </Link>
+                        <a
+                          href={`/observatorio/vista-previa/${article.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(buttonVariants({ variant: "ghost" }), "text-brand-navy")}
+                        >
+                          Vista previa
+                          <span className="sr-only">(se abre en otra pestaña)</span>
+                        </a>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
-                              size="sm"
                               variant="ghost"
-                              className="ml-2 text-red-700"
+                              className="text-red-700 hover:bg-red-50 hover:text-red-800"
                               disabled={deletingId === article.id}
                             >
                               {deletingId === article.id ? "Eliminando…" : "Eliminar"}
@@ -273,9 +333,9 @@ export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                      </>
+                      </div>
                     ) : (
-                      <span className="text-xs text-brand-muted">Solo lectura</span>
+                      <span className="text-sm text-brand-muted">Solo lectura</span>
                     )}
                   </TableCell>
                 </TableRow>
@@ -284,6 +344,8 @@ export function NewsManager({ articles }: { articles: AdminNewsListItem[] }) {
           </TableBody>
         </Table>
       </Card>
+
+      <NewsPagination filter={filter} pageCount={pageCount} matching={matching} pageSize={PAGE_SIZE} />
     </div>
   );
 }

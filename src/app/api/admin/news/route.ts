@@ -5,9 +5,10 @@ import { requireAdmin } from "@/lib/auth/require-admin";
 import { newsInputSchema, parsePublishedAt } from "@/lib/admin/schemas";
 import { parseJsonBody } from "@/lib/admin/safe";
 import { buildNewsData } from "@/lib/admin/news-input";
-import { getAdminNews } from "@/lib/observatorio/getNews";
+import { NEWS_INCLUDE, getAdminNews } from "@/lib/observatorio/getNews";
 import { canFeatureArticle } from "@/lib/auth/permissions";
 import { uniqueNewsSlug } from "@/lib/observatorio/slug";
+import { resolveTagIds } from "@/lib/observatorio/taxonomy";
 
 function revalidateNews() {
   revalidatePath("/");
@@ -50,8 +51,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: built.error }, { status: 400 });
   }
 
-  const featured = canFeatureArticle(auth.admin) ? parsed.data.featured : false;
   const prisma = await getPrisma();
+  if (!(await prisma.category.findUnique({ where: { id: built.data.categoryId }, select: { id: true } }))) {
+    return NextResponse.json({ error: "Elige una categoría de la lista." }, { status: 400 });
+  }
+  const tagIds = await resolveTagIds(prisma, built.tags);
+
+  const featured = canFeatureArticle(auth.admin) ? parsed.data.featured : false;
   if (featured) {
     await prisma.newsArticle.updateMany({ data: { featured: false } });
   }
@@ -64,8 +70,9 @@ export async function POST(request: Request) {
       createdById: auth.admin.id,
       updatedById: auth.admin.id,
       images: { create: built.images },
+      tags: { create: tagIds.map((tagId) => ({ tagId })) },
     },
-    include: { images: { orderBy: { position: "asc" } } },
+    include: NEWS_INCLUDE,
   });
 
   revalidateNews();

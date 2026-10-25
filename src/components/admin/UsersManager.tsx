@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { Alert } from "@/components/admin/ui/alert";
 import { Badge } from "@/components/admin/ui/badge";
 import { Button } from "@/components/admin/ui/button";
@@ -22,6 +21,14 @@ import {
 } from "@/components/admin/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/admin/ui/table";
 import { adminFetch, readError } from "@/components/admin/admin-fetch";
+import { ResultBanner } from "@/components/admin/ui/result-banner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/admin/ui/select";
 
 export type AdminUserItem = {
   id: string;
@@ -57,8 +64,12 @@ export function UsersManager({
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [password, setPassword] = useState(() => generatePassword());
+  const [newRole, setNewRole] = useState<"EDITOR" | "ADMIN">("EDITOR");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [issued, setIssued] = useState<IssuedCredentials | null>(null);
+  // Resultado del último cambio (rol, activar, desactivar): aviso fijo, no un toast que se va.
+  const [notice, setNotice] = useState<{ tone: "success" | "error"; title: string; text?: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function createUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,7 +84,7 @@ export function UsersManager({
       body: JSON.stringify({
         name: String(form.get("name") ?? ""),
         email,
-        role: String(form.get("role") ?? "EDITOR"),
+        role: newRole,
         password,
       }),
     });
@@ -86,12 +97,14 @@ export function UsersManager({
 
     setIssued({ email: email.trim().toLowerCase(), password, reason: "creado" });
     formElement.reset();
+    setNewRole("EDITOR");
     setPassword(generatePassword());
     router.refresh();
   }
 
   async function updateUser(user: AdminUserItem, changes: Record<string, unknown>, success: string) {
     setBusyId(user.id);
+    setNotice(null);
     const response = await adminFetch(`/api/admin/users/${user.id}`, {
       method: "PATCH",
       body: JSON.stringify(changes),
@@ -99,11 +112,13 @@ export function UsersManager({
     setBusyId(null);
 
     if (!response.ok) {
-      toast.error("No se pudo actualizar", { description: await readError(response) });
+      setNotice({ tone: "error", title: "No se pudo hacer el cambio", text: await readError(response) });
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return false;
     }
 
-    toast.success(success);
+    setNotice({ tone: "success", title: success, text: `${user.name} (${user.email})` });
+    window.scrollTo({ top: 0, behavior: "smooth" });
     router.refresh();
     return true;
   }
@@ -118,17 +133,28 @@ export function UsersManager({
     if (!issued) return;
     try {
       await navigator.clipboard.writeText(`Correo: ${issued.email}\nContraseña temporal: ${issued.password}`);
-      toast.success("Credenciales copiadas");
+      setCopied(true);
     } catch {
-      toast.error("No se pudo copiar; cópialas a mano.");
+      setCopied(false);
+      setNotice({ tone: "error", title: "No se pudo copiar", text: "Selecciona el texto de las credenciales y cópialo a mano." });
     }
   }
 
   return (
     <div className="space-y-6">
+      {notice?.tone === "success" ? (
+        <ResultBanner title={notice.title} onClose={() => setNotice(null)}>
+          {notice.text}
+        </ResultBanner>
+      ) : notice ? (
+        <Alert variant="destructive" className="text-base">
+          <p className="font-semibold">{notice.title}</p>
+          {notice.text ? <p className="mt-1">{notice.text}</p> : null}
+        </Alert>
+      ) : null}
       <div>
         <h1 className="font-serif text-3xl font-bold text-brand-navy">Usuarios</h1>
-        <p className="mt-1 text-sm text-brand-muted">
+        <p className="mt-1 text-base text-brand-muted">
           Los editores cargan y publican sus propias noticias. Solo los admins gestionan usuarios,
           el termómetro y la noticia destacada.
         </p>
@@ -151,10 +177,10 @@ export function UsersManager({
               <p>Contraseña temporal: {issued.password}</p>
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={copyCredentials}>
-                Copiar
+              <Button size="lg" onClick={copyCredentials}>
+                {copied ? "Copiado ✓" : "Copiar"}
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setIssued(null)}>
+              <Button size="lg" variant="outline" onClick={() => { setIssued(null); setCopied(false); }}>
                 Listo
               </Button>
             </div>
@@ -169,7 +195,7 @@ export function UsersManager({
         </CardHeader>
         <CardContent>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={createUser}>
-            {createError ? <Alert className="md:col-span-2">{createError}</Alert> : null}
+            {createError ? <Alert variant="destructive" className="md:col-span-2">{createError}</Alert> : null}
             <div className="space-y-2">
               <Label htmlFor="name">Nombre</Label>
               <Input id="name" name="name" required minLength={2} maxLength={120} />
@@ -180,15 +206,20 @@ export function UsersManager({
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">Rol</Label>
-              <select
-                id="role"
-                name="role"
-                defaultValue="EDITOR"
-                className="flex h-10 w-full rounded-md border border-brand-border bg-white px-3 text-sm"
-              >
-                <option value="EDITOR">Editor</option>
-                <option value="ADMIN">Admin</option>
-              </select>
+              <Select value={newRole} onValueChange={(value) => setNewRole(value as "EDITOR" | "ADMIN")}>
+                <SelectTrigger id="role">
+                  <SelectValue>{newRole === "ADMIN" ? "Admin" : "Editor"}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EDITOR">Editor</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-brand-muted">
+                {newRole === "EDITOR"
+                  ? "Carga noticias y edita solo las suyas."
+                  : "Además crea usuarios, maneja el termómetro y elige la noticia destacada."}
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña temporal</Label>
@@ -236,9 +267,9 @@ export function UsersManager({
                   <TableCell>
                     <p className="font-medium text-brand-navy">
                       {user.name}
-                      {isSelf ? <span className="ml-2 text-xs text-brand-muted">(tú)</span> : null}
+                      {isSelf ? <span className="ml-2 text-sm text-brand-muted">(tú)</span> : null}
                     </p>
-                    <p className="mt-1 text-xs text-brand-muted">{user.email}</p>
+                    <p className="mt-1 text-sm text-brand-muted">{user.email}</p>
                   </TableCell>
                   <TableCell>
                     <Badge variant={user.role === "ADMIN" ? "default" : "secondary"}>
@@ -258,8 +289,7 @@ export function UsersManager({
                     {isSelf ? null : (
                       <>
                         <Button
-                          size="sm"
-                          variant="outline"
+                                                    variant="outline"
                           disabled={busy}
                           onClick={() =>
                             updateUser(
@@ -273,7 +303,7 @@ export function UsersManager({
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="ghost" className="ml-2" disabled={busy}>
+                            <Button variant="ghost" className="ml-2" disabled={busy}>
                               Resetear clave
                             </Button>
                           </AlertDialogTrigger>
@@ -297,8 +327,7 @@ export function UsersManager({
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
-                                size="sm"
-                                variant="ghost"
+                                                                variant="ghost"
                                 className="ml-2 text-red-700"
                                 disabled={busy}
                               >
@@ -326,8 +355,7 @@ export function UsersManager({
                           </AlertDialog>
                         ) : (
                           <Button
-                            size="sm"
-                            variant="ghost"
+                                                        variant="ghost"
                             className="ml-2"
                             disabled={busy}
                             onClick={() => updateUser(user, { active: true }, "Usuario reactivado")}

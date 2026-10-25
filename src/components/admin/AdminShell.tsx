@@ -4,11 +4,26 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { Newspaper, Thermometer, LayoutDashboard, LogOut, Users, UserCog } from "lucide-react";
-import { Button } from "@/components/admin/ui/button";
-import { Separator } from "@/components/admin/ui/separator";
+import { Badge } from "@/components/admin/ui/badge";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarSeparator,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/admin/ui/sidebar";
 import { Toaster } from "@/components/admin/ui/sonner";
 import { adminFetch } from "@/components/admin/admin-fetch";
-import { cn } from "@/lib/utils";
 
 type Role = "ADMIN" | "EDITOR";
 
@@ -27,16 +42,97 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+type ShellUser = { name: string; email: string; role: Role };
+
+function AdminSidebar({ user, onLogout }: { user: ShellUser; onLogout: () => void }) {
+  const pathname = usePathname();
+  const { isMobile, setOpenMobile } = useSidebar();
+  const nav = NAV.filter((item) => !item.adminOnly || user.role === "ADMIN");
+
+  return (
+    <Sidebar>
+      <SidebarHeader className="px-4 py-5 group-data-[collapsible=icon]:px-2.5">
+        <Link
+          href="/admin"
+          className="flex items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/30"
+        >
+          {/* Recogido, el menú muestra solo la inicial de la marca. */}
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-brand-navy font-serif text-xl font-bold text-white">
+            P
+          </span>
+          <span className="min-w-0 group-data-[collapsible=icon]:hidden">
+            <span className="block text-xs font-semibold tracking-[0.2em] text-brand-terracotta uppercase">
+              PDUL Online
+            </span>
+            <span className="block truncate font-serif text-xl font-bold text-brand-navy">
+              Panel editorial
+            </span>
+          </span>
+        </Link>
+      </SidebarHeader>
+      <SidebarSeparator />
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Secciones</SidebarGroupLabel>
+          <SidebarMenu>
+            {nav.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActivePath(pathname, item.href)}
+                  tooltip={item.label}
+                >
+                  <Link
+                    href={item.href}
+                    onClick={() => {
+                      if (isMobile) setOpenMobile(false);
+                    }}
+                  >
+                    <item.icon aria-hidden="true" />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarSeparator />
+      <SidebarFooter>
+        <div className="px-1 group-data-[collapsible=icon]:hidden">
+          <p className="flex items-center gap-2 text-base font-medium text-brand-navy">
+            <span className="truncate">{user.name}</span>
+            <Badge variant="secondary" className="shrink-0 text-[11px] uppercase">
+              {ROLE_LABEL[user.role]}
+            </Badge>
+          </p>
+          <p className="truncate text-sm text-brand-muted">{user.email}</p>
+        </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Cerrar sesión" onClick={onLogout}>
+              <LogOut aria-hidden="true" />
+              <span>Cerrar sesión</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
+  );
+}
+
 export function AdminShell({
   user,
+  defaultSidebarOpen = true,
   children,
 }: {
-  user: { name: string; email: string; role: Role };
+  user: ShellUser;
+  /** Estado guardado en la cookie del sidebar (abierto o recogido). */
+  defaultSidebarOpen?: boolean;
   children: ReactNode;
 }) {
-  const pathname = usePathname();
   const router = useRouter();
-  const nav = NAV.filter((item) => !item.adminOnly || user.role === "ADMIN");
 
   async function logout() {
     await adminFetch("/api/admin/auth/logout", { method: "POST" });
@@ -45,79 +141,16 @@ export function AdminShell({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <SidebarProvider defaultOpen={defaultSidebarOpen}>
       <Toaster />
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-brand-border bg-white md:flex md:flex-col">
-        <div className="px-6 py-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-terracotta">
-            PDUL Online
-          </p>
-          <p className="mt-1 font-serif text-2xl font-bold text-brand-navy">Panel editorial</p>
-        </div>
-        <Separator />
-        <nav className="flex flex-1 flex-col gap-1 p-4">
-          {nav.map((item) => {
-            const active = isActivePath(pathname, item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-brand-navy text-white"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-brand-navy",
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="p-4">
-          <p className="flex items-center gap-2 text-sm font-medium text-brand-navy">
-            <span className="truncate">{user.name}</span>
-            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-muted">
-              {ROLE_LABEL[user.role]}
-            </span>
-          </p>
-          <p className="truncate text-xs text-brand-muted">{user.email}</p>
-          <Button variant="outline" className="mt-3 w-full" onClick={logout}>
-            <LogOut className="h-4 w-4" />
-            Cerrar sesión
-          </Button>
-        </div>
-      </aside>
-
-      <div className="md:pl-64">
-        <header className="sticky top-0 z-20 border-b border-brand-border bg-white/95 px-4 py-3 backdrop-blur md:hidden">
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-serif text-lg font-bold text-brand-navy">Panel editorial</p>
-            <Button size="sm" variant="outline" onClick={logout}>
-              Salir
-            </Button>
-          </div>
-          <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
-            {nav.map((item) => {
-              const active = isActivePath(pathname, item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold",
-                    active ? "bg-brand-navy text-white" : "bg-slate-100 text-slate-600",
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+      <AdminSidebar user={user} onLogout={logout} />
+      <SidebarInset>
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-brand-border bg-white/95 px-3 py-2.5 backdrop-blur sm:px-4">
+          <SidebarTrigger showLabel className="text-base" />
+          <span className="font-serif text-lg font-bold text-brand-navy md:hidden">Panel editorial</span>
         </header>
-        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</div>
-      </div>
-    </div>
+        <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
