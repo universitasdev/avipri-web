@@ -29,11 +29,19 @@ function serializeArticle(article: NewsArticle, featured: boolean) {
     eventDetailsJson: article.eventDetails ? JSON.stringify(article.eventDetails) : null,
     cta: article.cta ?? null,
     href: article.href ?? null,
-    imageSrc: article.image?.src ?? null,
     imageAlt: article.image?.alt ?? null,
     featured,
     published: true,
   };
+}
+
+const STATIC_IMAGES = new Map(
+  [LEAD_ARTICLE, ...SECONDARY_ARTICLES].map((article) => [article.id, article.image]),
+);
+
+function imagesOf(id: string) {
+  const image = STATIC_IMAGES.get(id);
+  return image ? [{ src: image.src, alt: image.alt, position: 0 }] : [];
 }
 
 async function main() {
@@ -56,8 +64,9 @@ async function main() {
   for (const article of articles) {
     await prisma.newsArticle.upsert({
       where: { id: article.id },
-      update: article,
-      create: article,
+      // Las fotos se recrean para que el seed deje siempre la misma galería.
+      update: { ...article, images: { deleteMany: {}, create: imagesOf(article.id) } },
+      create: { ...article, images: { create: imagesOf(article.id) } },
     });
   }
 

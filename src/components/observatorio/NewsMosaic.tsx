@@ -1,10 +1,19 @@
 import type { CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { faArrowRight, faPlay, faStar, faVideo } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowRight,
+  faDownload,
+  faFilePdf,
+  faImages,
+  faPlay,
+  faStar,
+  faVideo,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { CATEGORY_STYLES } from "@/components/observatorio/categoryStyles";
 import type { NewsArticle } from "@/lib/observatorio/content";
+import { formatBytes } from "@/lib/format";
 import { acomodarMosaico, type Celda, type FormatoMosaico } from "@/lib/observatorio/mosaic";
 
 /*
@@ -12,7 +21,9 @@ import { acomodarMosaico, type Celda, type FormatoMosaico } from "@/lib/observat
  * Cada noticia es una pieza que lleva a /observatorio/<slug>:
  *   DESTACADA 2×2  la noticia destacada (foto, video o texto) en grande
  *   VIDEO     2×2  portada a sangre con botón de reproducir
+ *   GALERIA   2×2  collage de fotos con "+N"
  *   IMAGEN    1×2  foto vertical a sangre; el subtítulo aparece al pasar el cursor
+ *   DOCUMENTO 1×1  hoja con esquina doblada y descarga directa del PDF
  *   TEXTO     2×1  franja con el color de la categoría, para noticias sin foto ni video
  */
 
@@ -31,14 +42,32 @@ const SHADE_IMAGE =
 const SHADE_VIDEO =
   "bg-[linear-gradient(0deg,rgb(26_43_75/0.95)_0%,rgb(26_43_75/0.35)_45%,rgb(26_43_75/0.15)_100%)]";
 
+const SHADE_GALLERY =
+  "bg-[linear-gradient(0deg,rgb(26_43_75/0.95)_0%,rgb(26_43_75/0.4)_40%,rgb(26_43_75/0)_65%)]";
+
 const piece =
   "group relative overflow-hidden rounded-2xl shadow-md transition-[transform,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:shadow-xl focus-within:-translate-y-1 focus-within:shadow-xl";
+
+const photoCount = (article: NewsArticle) => article.images?.length ?? (article.image ? 1 : 0);
 
 function formatOf(article: NewsArticle): FormatoMosaico {
   if (article.featured) return "DESTACADA";
   if (article.video) return "VIDEO";
+  if (photoCount(article) >= 2) return "GALERIA";
   if (article.image) return "IMAGEN";
+  if (article.attachment) return "DOCUMENTO";
   return "TEXTO";
+}
+
+/** Insignia "PDF" para piezas con foto o video que además traen un documento. */
+function PdfBadge({ article }: { article: NewsArticle }) {
+  if (!article.attachment) return null;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-brand-terracotta px-2 py-0.5 text-[11px] font-bold text-white">
+      <FontAwesomeIcon icon={faFilePdf} />
+      PDF
+    </span>
+  );
 }
 
 /** La posición va en variables CSS para cambiarla según el ancho de pantalla. */
@@ -68,6 +97,7 @@ function Meta({ article, light = false }: { article: NewsArticle; light?: boolea
       >
         {article.categoryLabel}
       </span>
+      <PdfBadge article={article} />
       <span aria-hidden="true">·</span>
       <time dateTime={article.isoDate}>{article.dateShort}</time>
     </p>
@@ -174,6 +204,101 @@ function VideoPiece({ article, priority }: { article: NewsArticle; priority: boo
   );
 }
 
+function GalleryPiece({ article, priority }: { article: NewsArticle; priority: boolean }) {
+  const photos = article.images ?? [];
+  const [main, ...rest] = photos;
+  const extra = photos.length - 3;
+  return (
+    <article className={`${piece} h-[28rem] bg-brand-navy sm:h-full`}>
+      <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-1">
+        {main ? (
+          <div className="relative col-span-2 row-span-2 overflow-hidden">
+            <Image
+              src={main.src}
+              alt={main.alt}
+              fill
+              sizes="(min-width: 1024px) 420px, 66vw"
+              priority={priority}
+              className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
+            />
+          </div>
+        ) : null}
+        {rest.slice(0, 2).map((photo, i) => (
+          <div key={photo.src} className="relative overflow-hidden">
+            <Image
+              src={photo.src}
+              alt={photo.alt}
+              fill
+              sizes="(min-width: 1024px) 210px, 33vw"
+              className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.1]"
+            />
+            {i === 1 && extra > 0 ? (
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 grid place-items-center bg-brand-navy/60 font-serif text-2xl font-bold text-white"
+              >
+                +{extra}
+              </span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <div aria-hidden="true" className={`absolute inset-0 ${SHADE_GALLERY}`} />
+      <span className="absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full bg-brand-navy/75 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+        <FontAwesomeIcon icon={faImages} />
+        Galería · {photos.length} fotos
+      </span>
+      <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
+        <Meta article={article} light />
+        <TitleLink
+          article={article}
+          className="mt-3 line-clamp-3 max-w-xl font-serif text-2xl font-bold leading-tight text-white sm:text-3xl"
+        />
+        <p className="mt-2 line-clamp-2 max-w-xl text-sm text-white/85">{article.subtitle}</p>
+      </div>
+    </article>
+  );
+}
+
+function DocumentPiece({ article }: { article: NewsArticle }) {
+  const attachment = article.attachment!;
+  return (
+    <article className={`${piece} flex h-full min-h-56 flex-col border border-brand-border bg-white p-5 sm:min-h-0`}>
+      {/* Esquina doblada de la hoja. */}
+      <span
+        aria-hidden="true"
+        className="absolute top-0 right-0 size-9 rounded-bl-lg bg-[linear-gradient(225deg,var(--color-brand-bone)_50%,var(--color-brand-border)_50%)] transition-[width,height] duration-300 ease-out group-hover:size-12"
+      />
+      <p className="flex items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-brand-terracotta px-2 py-1 text-xs font-extrabold tracking-wide text-white">
+          <FontAwesomeIcon icon={faFilePdf} />
+          PDF
+        </span>
+        <span className="text-xs text-slate-500">{formatBytes(attachment.bytes)}</span>
+      </p>
+      <TitleLink
+        article={article}
+        className="mt-3 line-clamp-3 font-serif text-lg font-bold leading-snug text-brand-navy group-hover:text-brand-terracotta"
+      />
+      <div className="mt-auto flex items-end justify-between gap-3 pt-3">
+        <p className="text-xs text-slate-500">
+          <span className="font-semibold text-brand-terracotta">{article.categoryLabel}</span>
+          <br />
+          <time dateTime={article.isoDate}>{article.dateShort}</time>
+        </p>
+        <a
+          href={attachment.src}
+          download
+          className="relative z-10 grid size-10 shrink-0 place-items-center rounded-full bg-brand-navy text-white transition-[background-color,transform] duration-150 hover:bg-brand-terracotta active:scale-[0.92]"
+        >
+          <FontAwesomeIcon icon={faDownload} />
+          <span className="sr-only">Descargar «{attachment.name}»</span>
+        </a>
+      </div>
+    </article>
+  );
+}
+
 function TextPiece({ article }: { article: NewsArticle }) {
   const fill = CATEGORY_FILL[article.category];
   const icon = CATEGORY_STYLES[article.category].icon;
@@ -236,8 +361,12 @@ export function NewsMosaic({ articles }: { articles: NewsArticle[] }) {
         >
           {article.video ? (
             <VideoPiece article={article} priority={i < 2} />
+          ) : photoCount(article) >= 2 ? (
+            <GalleryPiece article={article} priority={i < 2} />
           ) : article.image ? (
             <ImagePiece article={article} priority={i < 2} big={formats[i] === "DESTACADA"} />
+          ) : article.attachment ? (
+            <DocumentPiece article={article} />
           ) : (
             <TextPiece article={article} />
           )}

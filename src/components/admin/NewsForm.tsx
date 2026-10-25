@@ -12,6 +12,12 @@ import { Input } from "@/components/admin/ui/input";
 import { Label } from "@/components/admin/ui/label";
 import { Textarea } from "@/components/admin/ui/textarea";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { GalleryUpload, photosFromImages, type GalleryPhoto } from "@/components/admin/GalleryUpload";
+import {
+  DocumentUpload,
+  uploadNewsDocument,
+  type NewsDocumentDraft,
+} from "@/components/admin/DocumentUpload";
 import { VideoUpload, uploadNewsVideo } from "@/components/admin/VideoUpload";
 import { extractYoutubeId } from "@/lib/admin/schemas";
 import { adminFetch, readError } from "@/components/admin/admin-fetch";
@@ -19,7 +25,7 @@ import { cn } from "@/lib/utils";
 import type { AdminNewsItem } from "@/components/admin/NewsManager";
 
 type Point = { title: string; body: string };
-type SavePhase = "idle" | "uploading" | "uploadingVideo" | "saving";
+type SavePhase = "idle" | "uploading" | "saving";
 type MediaType = "IMAGE" | "VIDEO";
 type VideoSource = "YOUTUBE" | "FILE";
 
@@ -153,7 +159,20 @@ export function NewsForm({
   const [youtubeInput, setYoutubeInput] = useState(
     article?.videoYoutubeId ? `https://www.youtube.com/watch?v=${article.videoYoutubeId}` : "",
   );
-  const [videoProgress, setVideoProgress] = useState(0);
+  const [photos, setPhotos] = useState<GalleryPhoto[]>(() =>
+    photosFromImages(article?.images ?? []),
+  );
+  const [pdfDraft, setPdfDraft] = useState<NewsDocumentDraft | null>(() =>
+    article?.attachmentSrc
+      ? {
+          src: article.attachmentSrc,
+          name: article.attachmentName ?? "Documento",
+          bytes: article.attachmentBytes ?? 0,
+        }
+      : null,
+  );
+  // Texto del botón mientras se suben archivos ("Subiendo foto 2 de 5…").
+  const [uploadLabel, setUploadLabel] = useState("");
   const youtubePreviewId = youtubeInput.trim() ? extractYoutubeId(youtubeInput) : null;
   const isEdit = Boolean(article?.id);
   const pending = phase !== "idle";
@@ -187,22 +206,62 @@ export function NewsForm({
       return;
     }
 
+    if (pdfDraft && !pdfDraft.name.trim()) {
+      setError("Escribe el nombre del documento PDF o quítalo.");
+      return;
+    }
+
     let uploading = "la imagen";
+    const images: { src: string; alt: string | null }[] = [];
+    let attachment: { src: string; name: string; bytes: number } | null = null;
     try {
-      if (imageFile instanceof File && imageFile.size > 0) {
-        setPhase("uploading");
+      setPhase("uploading");
+      if (mediaType === "IMAGE") {
+        // Las fotos nuevas se suben una por una, en el orden de la galería.
+        const pending = photos.filter((photo) => photo.file).length;
+        let done = 0;
+        const uploaded: GalleryPhoto[] = [];
+        for (const photo of photos) {
+          let src = photo.src;
+          if (photo.file) {
+            done++;
+            uploading = "una de las fotos";
+            setUploadLabel(pending > 1 ? `Subiendo foto ${done} de ${pending}…` : "Subiendo foto…");
+            src = await uploadNewsImage(photo.file);
+          }
+          uploaded.push({ ...photo, src, file: undefined });
+          images.push({ src: src!, alt: photo.alt.trim() || null });
+        }
+        // Ya subidas: un segundo guardado no las vuelve a subir.
+        setPhotos(uploaded);
+      } else if (imageFile instanceof File && imageFile.size > 0) {
+        uploading = "la portada del video";
+        setUploadLabel("Subiendo portada…");
         imageSrc = await uploadNewsImage(imageFile);
       }
-      uploading = "el video";
+
       if (
         mediaType === "VIDEO" &&
         videoSource === "FILE" &&
         videoFile instanceof File &&
         videoFile.size > 0
       ) {
-        setVideoProgress(0);
-        setPhase("uploadingVideo");
-        videoFileSrc = await uploadNewsVideo(videoFile, setVideoProgress);
+        uploading = "el video";
+        videoFileSrc = await uploadNewsVideo(videoFile, (percent) =>
+          setUploadLabel(`Subiendo video… ${percent}%`),
+        );
+      }
+
+      if (pdfDraft) {
+        let src = pdfDraft.src;
+        if (pdfDraft.file) {
+          uploading = "el PDF";
+          src = await uploadNewsDocument(pdfDraft.file, (percent) =>
+            setUploadLabel(`Subiendo PDF… ${percent}%`),
+          );
+          setPdfDraft({ ...pdfDraft, src, file: undefined });
+        }
+        attachment = { src: src!, name: pdfDraft.name.trim(), bytes: pdfDraft.bytes };
       }
     } catch (uploadError) {
       const message =
@@ -236,8 +295,11 @@ export function NewsForm({
       cta: String(form.get("cta") ?? "") || null,
       href: String(form.get("href") ?? "") || null,
       mediaType,
-      imageSrc,
+      images: mediaType === "IMAGE" ? images : [],
+      // Con video, imageSrc es la portada; con fotos no se usa.
+      imageSrc: mediaType === "VIDEO" ? imageSrc : null,
       imageAlt: String(form.get("imageAlt") ?? "") || null,
+      attachment,
       videoYoutube: mediaType === "VIDEO" && videoSource === "YOUTUBE" ? youtubeInput : null,
       videoFileSrc: mediaType === "VIDEO" && videoSource === "FILE" ? videoFileSrc : null,
       featured,
@@ -286,10 +348,8 @@ export function NewsForm({
 
   const submitLabel =
     phase === "uploading"
-      ? "Subiendo imagen…"
-      : phase === "uploadingVideo"
-        ? `Subiendo video… ${videoProgress}%`
-        : phase === "saving"
+      ? uploadLabel || "Preparando…"
+      : phase === "saving"
         ? "Guardando…"
         : isEdit
           ? "Guardar cambios"
@@ -469,8 +529,8 @@ export function NewsForm({
           <CardHeader>
             <CardTitle>Medio principal</CardTitle>
             <CardDescription>
-              Cada noticia lleva una foto o un video. Se muestra en la noticia destacada, en la
-              portada y al abrir la noticia en el Observatorio.
+              Cada noticia lleva fotos o un video. Con 2 fotos o más se publica como galería. Se
+              muestra en el Observatorio y al abrir la noticia.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -479,13 +539,21 @@ export function NewsForm({
               value={mediaType}
               onChange={setMediaType}
               options={[
-                { value: "IMAGE", label: "Foto" },
+                { value: "IMAGE", label: "Fotos" },
                 { value: "VIDEO", label: "Video" },
               ]}
             />
-            <div className="grid gap-5 md:grid-cols-2">
-              {/* Se ocultan en vez de desmontarse para no perder un archivo ya elegido al cambiar de opción. */}
-              <div className={cn("space-y-4", mediaType !== "VIDEO" && "hidden")}>
+            {/* Se ocultan en vez de desmontarse para no perder archivos ya elegidos al cambiar de opción. */}
+            <div className={cn(mediaType !== "IMAGE" && "hidden")}>
+              <Field
+                label="Fotos"
+                hint="JPG, PNG o WebP, máximo 3 MB cada una y hasta 12. Puedes elegir varias a la vez. La primera es la portada; usa las flechas para cambiar el orden."
+              >
+                <GalleryUpload photos={photos} onChange={setPhotos} />
+              </Field>
+            </div>
+            <div className={cn("grid gap-5 md:grid-cols-2", mediaType !== "VIDEO" && "hidden")}>
+              <div className="space-y-4">
                 <ChoiceGroup
                   name="videoSource"
                   value={videoSource}
@@ -530,30 +598,47 @@ export function NewsForm({
                   </Field>
                 </div>
               </div>
-              <Field
-                label={mediaType === "VIDEO" ? "Portada del video (opcional)" : "Foto"}
-                hint={
-                  mediaType === "VIDEO"
-                    ? "Imagen que se ve en la tarjeta antes de reproducir. Si no subes una, se usa la miniatura de YouTube o el primer cuadro del video. JPG, PNG o WebP, máximo 3 MB."
-                    : "JPG, PNG o WebP, máximo 3 MB. Elige el archivo con el botón. Si no subes foto, la noticia se muestra como tarjeta de texto con el color de su categoría."
-                }
-              >
-                <ImageUpload currentSrc={article?.imageSrc} />
-              </Field>
-              <Field
-                id="imageAlt"
-                label={mediaType === "VIDEO" ? "Descripción del video" : "Descripción de la foto"}
-                hint="Frase que dice qué se ve, para personas que no pueden verlo y para buscadores. Ejemplo: “Promulgación del Decreto de Inicio del PDUL Iribarren”."
-              >
-                <Input
+              <div className="space-y-5">
+                <Field
+                  label="Portada del video (opcional)"
+                  hint="Imagen que se ve en la tarjeta antes de reproducir. Si no subes una, se usa la miniatura de YouTube o el primer cuadro del video. JPG, PNG o WebP, máximo 3 MB."
+                >
+                  <ImageUpload currentSrc={article?.imageSrc} />
+                </Field>
+                <Field
                   id="imageAlt"
-                  name="imageAlt"
-                  defaultValue={article?.imageAlt ?? ""}
-                  maxLength={200}
-                  placeholder="Describe en una frase lo que se ve"
-                />
-              </Field>
+                  label="Descripción del video"
+                  hint="Frase que dice qué se ve, para personas que no pueden verlo y para buscadores. Ejemplo: “Recorrido por el centro histórico de Barquisimeto”."
+                >
+                  <Input
+                    id="imageAlt"
+                    name="imageAlt"
+                    defaultValue={article?.imageAlt ?? ""}
+                    maxLength={200}
+                    placeholder="Describe en una frase lo que se ve"
+                  />
+                </Field>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Documento PDF (opcional)</CardTitle>
+            <CardDescription>
+              Decretos, estudios o cuadernillos. El público puede verlo en la página de la noticia
+              o descargarlo. Si la noticia no tiene fotos ni video, se muestra como tarjeta de
+              documento.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Field
+              label="Archivo PDF"
+              hint="Máximo 20 MB. Se sube al guardar; no cierres la página hasta que termine. El nombre es el que verá el público."
+            >
+              <DocumentUpload value={pdfDraft} onChange={setPdfDraft} />
+            </Field>
           </CardContent>
         </Card>
 

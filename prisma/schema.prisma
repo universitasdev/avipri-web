@@ -66,12 +66,19 @@ model NewsArticle {
   cta                String?
   href               String?
   mediaType          NewsMediaType @default(IMAGE)
-  // Con mediaType IMAGE es la foto; con VIDEO, la portada opcional del video.
+  // Con mediaType IMAGE las fotos van en `images` (1 = foto, 2 o más = galería).
+  images             NewsImage[]
+  // Portada opcional del video (solo con mediaType VIDEO).
   imageSrc           String?
+  // Descripción del medio principal.
   imageAlt           String?
   // Con mediaType VIDEO se usa uno de los dos: un video de YouTube o un archivo subido.
   videoYoutubeId     String?
   videoFileSrc       String?
+  // PDF adjunto opcional, en cualquier tipo de noticia.
+  attachmentSrc      String?
+  attachmentName     String?
+  attachmentBytes    Int?
   featured           Boolean  @default(false)
   published          Boolean  @default(true)
   createdById        String?
@@ -82,6 +89,18 @@ model NewsArticle {
   updatedAt          DateTime @updatedAt
 
   @@index([createdById])
+}
+
+model NewsImage {
+  id        String      @id @default(cuid())
+  articleId String
+  article   NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  src       String
+  alt       String?
+  // Orden en la galería; la posición 0 es la portada.
+  position  Int
+
+  @@index([articleId, position])
 }
 
 model Video {

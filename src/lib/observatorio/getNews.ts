@@ -62,9 +62,15 @@ export type NewsRecord = {
   mediaType: "IMAGE" | "VIDEO";
   videoYoutubeId: string | null;
   videoFileSrc: string | null;
+  attachmentSrc: string | null;
+  attachmentName: string | null;
+  attachmentBytes: number | null;
+  images: { src: string; alt: string | null }[];
   featured: boolean;
   published: boolean;
 };
+
+const WITH_IMAGES = { images: { orderBy: { position: "asc" as const } } };
 
 function mapVideo(row: NewsRecord): NewsVideo | undefined {
   if (row.mediaType !== "VIDEO") return undefined;
@@ -82,6 +88,12 @@ function mapVideo(row: NewsRecord): NewsVideo | undefined {
     return { kind: "file", src: row.videoFileSrc, title, poster: row.imageSrc ?? undefined };
   }
   return undefined;
+}
+
+function mapImages(row: NewsRecord) {
+  if (row.mediaType !== "IMAGE") return { images: [] };
+  const images = row.images.map((image) => ({ src: image.src, alt: image.alt || row.title }));
+  return { images, image: images[0] };
 }
 
 export function mapNewsArticle(row: NewsRecord): NewsArticle {
@@ -104,16 +116,22 @@ export function mapNewsArticle(row: NewsRecord): NewsArticle {
     eventDetails: eventDetails.length > 0 ? eventDetails : undefined,
     cta: row.cta ?? undefined,
     href: row.href ?? undefined,
-    image:
-      row.mediaType === "IMAGE" && row.imageSrc
-        ? { src: row.imageSrc, alt: row.imageAlt || row.title }
-        : undefined,
+    ...mapImages(row),
     video: mapVideo(row),
+    attachment: row.attachmentSrc
+      ? {
+          src: row.attachmentSrc,
+          name: row.attachmentName || row.title,
+          bytes: row.attachmentBytes ?? 0,
+        }
+      : undefined,
   };
 }
 
 // Respaldo si la base no responde o aún no tiene noticias.
-const STATIC_NEWS: NewsArticle[] = [{ ...LEAD_ARTICLE, featured: true }, ...SECONDARY_ARTICLES];
+const STATIC_NEWS: NewsArticle[] = [{ ...LEAD_ARTICLE, featured: true }, ...SECONDARY_ARTICLES].map(
+  (article) => ({ ...article, images: article.image ? [article.image] : [] }),
+);
 
 /** Noticias publicadas: la destacada primero y luego de la más reciente a la más antigua. */
 export async function getNews(): Promise<NewsArticle[]> {
@@ -122,6 +140,7 @@ export async function getNews(): Promise<NewsArticle[]> {
     const rows = await prisma.newsArticle.findMany({
       where: { published: true },
       orderBy: [{ featured: "desc" }, { publishedAt: "desc" }],
+      include: WITH_IMAGES,
     });
     return rows.length > 0 ? rows.map(mapNewsArticle) : STATIC_NEWS;
   } catch {
@@ -132,7 +151,7 @@ export async function getNews(): Promise<NewsArticle[]> {
 export async function getNewsBySlug(slug: string): Promise<NewsArticle | null> {
   try {
     const prisma = await getPrisma();
-    const row = await prisma.newsArticle.findUnique({ where: { slug } });
+    const row = await prisma.newsArticle.findUnique({ where: { slug }, include: WITH_IMAGES });
     if (row) return row.published ? mapNewsArticle(row) : null;
     // Solo se usa el respaldo estático cuando la base todavía no tiene noticias.
     if ((await prisma.newsArticle.count()) > 0) return null;
@@ -154,6 +173,9 @@ export async function getAdminNews() {
   const prisma = await getPrisma();
   return prisma.newsArticle.findMany({
     orderBy: [{ featured: "desc" }, { publishedAt: "desc" }],
-    include: { createdBy: { select: { name: true } } },
+    include: {
+      createdBy: { select: { name: true } },
+      images: { orderBy: { position: "asc" } },
+    },
   });
 }

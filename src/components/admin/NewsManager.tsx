@@ -39,8 +39,12 @@ export type AdminNewsItem = {
   imageSrc: string | null;
   imageAlt: string | null;
   mediaType: "IMAGE" | "VIDEO";
+  images: { src: string; alt: string | null }[];
   videoYoutubeId: string | null;
   videoFileSrc: string | null;
+  attachmentSrc: string | null;
+  attachmentName: string | null;
+  attachmentBytes: number | null;
   featured: boolean;
   published: boolean;
 };

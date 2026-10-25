@@ -29,30 +29,42 @@ export function isGcsConfigured() {
   return Boolean(getBucketName());
 }
 
-export const NEWS_VIDEO_TYPES = {
-  "video/mp4": "mp4",
-  "video/webm": "webm",
+/** Archivos grandes de las noticias que el navegador sube directo al bucket. */
+export const DIRECT_UPLOADS = {
+  video: {
+    folder: "videos",
+    maxBytes: 200 * 1024 * 1024,
+    types: { "video/mp4": "mp4", "video/webm": "webm" } as Record<string, string>,
+  },
+  document: {
+    folder: "docs",
+    maxBytes: 20 * 1024 * 1024,
+    types: { "application/pdf": "pdf" } as Record<string, string>,
+  },
 } as const;
 
-export type NewsVideoContentType = keyof typeof NEWS_VIDEO_TYPES;
-
-export const NEWS_VIDEO_MAX_BYTES = 200 * 1024 * 1024;
+export type DirectUploadKind = keyof typeof DIRECT_UPLOADS;
 
 /**
- * URL firmada para que el navegador suba el video directo al bucket: los archivos
+ * URL firmada para que el navegador suba el archivo directo al bucket: los archivos
  * grandes no pasan por las funciones de Netlify, que limitan el tamaño de la petición.
  * El bucket necesita CORS que permita PUT desde el dominio del sitio.
  */
-export async function createNewsVideoUploadUrl(contentType: NewsVideoContentType) {
+export async function createSignedUpload(kind: DirectUploadKind, contentType: string) {
   const bucketName = getBucketName();
   if (!bucketName) {
     throw new Error("GCS_BUCKET no está configurado.");
   }
+  const config = DIRECT_UPLOADS[kind];
+  const extension = config.types[contentType];
+  if (!extension) {
+    throw new Error("Tipo de archivo no permitido.");
+  }
 
-  const objectPath = `news/videos/${randomBytes(16).toString("hex")}.${NEWS_VIDEO_TYPES[contentType]}`;
+  const objectPath = `news/${config.folder}/${randomBytes(16).toString("hex")}.${extension}`;
   const headers = {
     "Content-Type": contentType,
-    "x-goog-content-length-range": `0,${NEWS_VIDEO_MAX_BYTES}`,
+    "x-goog-content-length-range": `0,${config.maxBytes}`,
   };
   const [uploadUrl] = await createStorageClient()
     .bucket(bucketName)

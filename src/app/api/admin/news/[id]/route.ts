@@ -65,13 +65,16 @@ export async function PATCH(request: Request, context: RouteContext) {
     });
   }
 
+  // Las fotos se reemplazan completas: Prisma hace el borrado y la creación en una transacción.
   const article = await prisma.newsArticle.update({
     where: { id },
     data: {
       ...built.data,
       featured,
       updatedById: auth.admin.id,
+      images: { deleteMany: {}, create: built.images },
     },
+    include: { images: { orderBy: { position: "asc" } } },
   });
 
   revalidateNews();

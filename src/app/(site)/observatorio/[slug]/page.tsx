@@ -11,6 +11,8 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { CATEGORY_STYLES } from "@/components/observatorio/categoryStyles";
 import { NewsCard } from "@/components/observatorio/NewsCard";
+import { NewsDocument } from "@/components/observatorio/NewsDocument";
+import { NewsGallery } from "@/components/observatorio/NewsGallery";
 import { NewsVideoPlayer } from "@/components/observatorio/NewsVideoPlayer";
 import type { NewsPoint } from "@/lib/observatorio/content";
 import { getNewsBySlug, getRelatedNews } from "@/lib/observatorio/getNews";
@@ -118,6 +120,8 @@ export default async function NewsDetailPage({ params }: PageProps) {
               <figcaption className="px-5 py-3 text-sm text-slate-500">{article.video.title}</figcaption>
             ) : null}
           </figure>
+        ) : (article.images?.length ?? 0) >= 2 ? (
+          <NewsGallery images={article.images!} title={article.title} />
         ) : article.image ? (
           <figure className="overflow-hidden rounded-2xl bg-white shadow-xl">
             <div className="relative aspect-[16/9] bg-slate-100">
@@ -164,6 +168,8 @@ export default async function NewsDetailPage({ params }: PageProps) {
             </a>
           ) : null}
         </div>
+
+        {article.attachment ? <NewsDocument attachment={article.attachment} /> : null}
 
         <Link
           href="/observatorio"

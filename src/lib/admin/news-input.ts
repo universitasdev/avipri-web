@@ -1,33 +1,53 @@
 import type { z } from "zod";
 import { extractYoutubeId, newsInputSchema } from "@/lib/admin/schemas";
-import { safeNewsImagePath, safeNewsVideoPath, safePublicUrl } from "@/lib/admin/safe";
+import {
+  safeNewsDocumentPath,
+  safeNewsImagePath,
+  safeNewsVideoPath,
+  safePublicUrl,
+} from "@/lib/admin/safe";
 
 type NewsInput = z.infer<typeof newsInputSchema>;
 
-// La noticia lleva foto O video (de YouTube o un archivo subido). Con video, la foto es su portada opcional.
+type Failure = { ok: false; error: string };
+
+/**
+ * La noticia lleva fotos O video. Con fotos, 1 es foto y 2 o más es galería; con video
+ * (de YouTube o un archivo subido), imageSrc es su portada opcional.
+ */
 function resolveMedia(input: NewsInput) {
   if (input.mediaType === "IMAGE") {
+    const images: { src: string; alt: string | null; position: number }[] = [];
+    for (const [position, image] of input.images.entries()) {
+      const src = safeNewsImagePath(image.src);
+      if (!src) return { ok: false, error: "Una de las fotos no es válida." } satisfies Failure;
+      images.push({ src, alt: image.alt || null, position });
+    }
     return {
       ok: true as const,
+      images,
       media: {
         mediaType: "IMAGE" as const,
-        imageSrc: safeNewsImagePath(input.imageSrc),
+        imageSrc: null,
         videoYoutubeId: null,
         videoFileSrc: null,
       },
     };
   }
 
+  const poster = safeNewsImagePath(input.imageSrc);
+
   if (input.videoYoutube) {
     const youtubeId = extractYoutubeId(input.videoYoutube);
     if (!youtubeId) {
-      return { ok: false as const, error: "El enlace de YouTube no es válido." };
+      return { ok: false, error: "El enlace de YouTube no es válido." } satisfies Failure;
     }
     return {
       ok: true as const,
+      images: [],
       media: {
         mediaType: "VIDEO" as const,
-        imageSrc: safeNewsImagePath(input.imageSrc),
+        imageSrc: poster,
         videoYoutubeId: youtubeId,
         videoFileSrc: null,
       },
@@ -37,28 +57,54 @@ function resolveMedia(input: NewsInput) {
   const fileSrc = safeNewsVideoPath(input.videoFileSrc);
   if (!fileSrc) {
     return {
-      ok: false as const,
+      ok: false,
       error: "Agrega un enlace de YouTube o sube un archivo de video.",
-    };
+    } satisfies Failure;
   }
   return {
     ok: true as const,
+    images: [],
     media: {
       mediaType: "VIDEO" as const,
-      imageSrc: safeNewsImagePath(input.imageSrc),
+      imageSrc: poster,
       videoYoutubeId: null,
       videoFileSrc: fileSrc,
     },
   };
 }
 
-/** Campos editables de la noticia (sin destacada ni autoría, que dependen del usuario). */
+function resolveAttachment(input: NewsInput) {
+  if (!input.attachment) {
+    return {
+      ok: true as const,
+      attachment: { attachmentSrc: null, attachmentName: null, attachmentBytes: null },
+    };
+  }
+  const src = safeNewsDocumentPath(input.attachment.src);
+  if (!src) return { ok: false, error: "El PDF adjunto no es válido." } satisfies Failure;
+  return {
+    ok: true as const,
+    attachment: {
+      attachmentSrc: src,
+      attachmentName: input.attachment.name,
+      attachmentBytes: input.attachment.bytes,
+    },
+  };
+}
+
+/**
+ * Campos editables de la noticia (sin destacada ni autoría, que dependen del usuario).
+ * Las fotos van aparte porque se guardan en NewsImage.
+ */
 export function buildNewsData(input: NewsInput, publishedAt: Date) {
   const media = resolveMedia(input);
   if (!media.ok) return media;
+  const attachment = resolveAttachment(input);
+  if (!attachment.ok) return attachment;
 
   return {
     ok: true as const,
+    images: media.images,
     data: {
       category: input.category,
       categoryLabel: input.categoryLabel,
@@ -75,6 +121,7 @@ export function buildNewsData(input: NewsInput, publishedAt: Date) {
       imageAlt: input.imageAlt || null,
       published: input.published,
       ...media.media,
+      ...attachment.attachment,
     },
   };
 }

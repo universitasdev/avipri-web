@@ -21,15 +21,20 @@ export type NewsArticle = {
   eventDetails?: NewsPoint[];
   cta?: string;
   href?: string;
-  image?: {
-    src: string;
-    alt: string;
-  };
+  /** Portada: la primera de `images`. */
+  image?: NewsImage;
+  /** Fotos en orden; con 2 o más es galería. */
+  images?: NewsImage[];
   video?: NewsVideo;
+  attachment?: NewsAttachment;
   featured?: boolean;
   /** Fecha en ISO para <time dateTime>. */
   isoDate?: string;
 };
+
+export type NewsImage = { src: string; alt: string };
+
+export type NewsAttachment = { src: string; name: string; bytes: number };
 
 export type NewsVideo =
   | { kind: "youtube"; youtubeId: string; title: string; poster: string }

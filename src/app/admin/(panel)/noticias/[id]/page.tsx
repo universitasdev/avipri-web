@@ -13,7 +13,10 @@ export default async function EditNewsPage({ params }: PageProps) {
   if (!admin) redirect("/admin/login");
 
   const prisma = await getPrisma();
-  const article = await prisma.newsArticle.findUnique({ where: { id } });
+  const article = await prisma.newsArticle.findUnique({
+    where: { id },
+    include: { images: { orderBy: { position: "asc" } } },
+  });
   if (!article) notFound();
   if (!canEditArticle(admin, article)) redirect("/admin/noticias");
 
@@ -40,6 +43,10 @@ export default async function EditNewsPage({ params }: PageProps) {
           mediaType: article.mediaType,
           videoYoutubeId: article.videoYoutubeId,
           videoFileSrc: article.videoFileSrc,
+          images: article.images.map((image) => ({ src: image.src, alt: image.alt })),
+          attachmentSrc: article.attachmentSrc,
+          attachmentName: article.attachmentName,
+          attachmentBytes: article.attachmentBytes,
           featured: article.featured,
           published: article.published,
         }}

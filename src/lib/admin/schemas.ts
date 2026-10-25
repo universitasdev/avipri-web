@@ -32,6 +32,24 @@ export const newsInputSchema = z.object({
     .nullable()
     .transform((value) => (value ? value : null)),
   imageAlt: z.string().trim().max(200).optional().nullable(),
+  // Fotos de la noticia en orden; la primera es la portada. Con 2 o más es galería.
+  images: z
+    .array(
+      z.object({
+        src: z.string().trim().min(1).max(500),
+        alt: z.string().trim().max(200).optional().nullable(),
+      }),
+    )
+    .max(12)
+    .default([]),
+  attachment: z
+    .object({
+      src: z.string().trim().min(1).max(500),
+      name: z.string().trim().min(1).max(200),
+      bytes: z.number().int().positive().max(20 * 1024 * 1024),
+    })
+    .optional()
+    .nullable(),
   mediaType: z.enum(["IMAGE", "VIDEO"]).default("IMAGE"),
   // Enlace o ID de YouTube; el servidor extrae el ID.
   videoYoutube: z.string().trim().max(200).optional().nullable(),

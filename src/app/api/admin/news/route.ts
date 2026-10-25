@@ -63,7 +63,9 @@ export async function POST(request: Request) {
       featured,
       createdById: auth.admin.id,
       updatedById: auth.admin.id,
+      images: { create: built.images },
     },
+    include: { images: { orderBy: { position: "asc" } } },
   });
 
   revalidateNews();

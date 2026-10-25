@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Film } from "lucide-react";
 import { Button } from "@/components/admin/ui/button";
-import { adminFetch, readError } from "@/components/admin/admin-fetch";
+import { uploadDirect } from "@/components/admin/direct-upload";
 
 export const VIDEO_MAX_BYTES = 200 * 1024 * 1024;
 const ALLOWED = ["video/mp4", "video/webm"];
@@ -16,59 +16,9 @@ function videoContentType(file: File) {
   return "";
 }
 
-function sendWithProgress(
-  method: "PUT" | "POST",
-  url: string,
-  body: Blob | FormData,
-  headers: Record<string, string>,
-  onProgress: (percent: number) => void,
-) {
-  return new Promise<string>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open(method, url);
-    for (const [key, value] of Object.entries(headers)) xhr.setRequestHeader(key, value);
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
-    };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.responseText);
-      else {
-        let message = "No se pudo subir el video.";
-        try {
-          message = (JSON.parse(xhr.responseText) as { error?: string }).error || message;
-        } catch {}
-        reject(new Error(message));
-      }
-    };
-    xhr.onerror = () => reject(new Error("Se cortó la conexión mientras subía el video."));
-    xhr.send(body);
-  });
-}
-
 /** Sube el video: directo a Cloud Storage con URL firmada, o al servidor en local. */
-export async function uploadNewsVideo(file: File, onProgress: (percent: number) => void) {
-  const contentType = videoContentType(file);
-  const response = await adminFetch("/api/admin/uploads/video", {
-    method: "POST",
-    body: JSON.stringify({ contentType, size: file.size }),
-  });
-  if (!response.ok) throw new Error(await readError(response));
-
-  const plan = (await response.json()) as
-    | { mode: "direct"; uploadUrl: string; headers: Record<string, string>; url: string }
-    | { mode: "server" };
-
-  if (plan.mode === "direct") {
-    await sendWithProgress("PUT", plan.uploadUrl, file, plan.headers, onProgress);
-    return plan.url;
-  }
-
-  const body = new FormData();
-  body.append("file", file);
-  const text = await sendWithProgress("POST", "/api/admin/uploads/video", body, {}, onProgress);
-  const data = JSON.parse(text) as { url?: string };
-  if (!data.url) throw new Error("No se pudo guardar el video.");
-  return data.url;
+export function uploadNewsVideo(file: File, onProgress: (percent: number) => void) {
+  return uploadDirect("/api/admin/uploads/video", file, videoContentType(file), onProgress);
 }
 
 export function VideoUpload({ currentSrc }: { currentSrc?: string | null }) {
