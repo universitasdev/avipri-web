@@ -1,3 +1,5 @@
+> **Documento histórico** (plan previo a octubre de 2026). El estado actual del proyecto está en [docs/contexto-proyecto.md](docs/contexto-proyecto.md).
+
 # PEDUL Online — Contexto del proyecto y plan de trabajo
 
 Documento de alineación técnica a partir del estado del repositorio `avipri-web`, los repos hermanos (PEDUL YA) y la minuta de reajustes previa a la presentación en Caracas.
