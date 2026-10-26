@@ -25,6 +25,8 @@ export default async function EditNewsPage({ params }: PageProps) {
   return (
     <Suspense fallback={<p className="text-sm text-brand-muted">Cargando noticia…</p>}>
       <NewsForm
+        userId={admin.id}
+        updatedAt={article.updatedAt.toISOString()}
         canFeature={canFeatureArticle(admin)}
         {...(await getFormTaxonomy())}
         article={{

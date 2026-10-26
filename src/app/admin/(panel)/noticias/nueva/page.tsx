@@ -10,6 +10,7 @@ export default async function NewNewsPage() {
   return (
     <Suspense fallback={<p className="text-sm text-brand-muted">Cargando formulario…</p>}>
       <NewsForm
+        userId={admin?.id ?? "sin-sesion"}
         today={new Date().toISOString().slice(0, 10)}
         canFeature={admin ? canFeatureArticle(admin) : false}
         categories={taxonomy.categories}

@@ -1,10 +1,10 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, ChevronDown, CircleAlert, Eye } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, CircleAlert, Eye, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/admin/ui/alert";
 import { Checkbox } from "@/components/admin/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/admin/ui/collapsible";
@@ -39,7 +39,17 @@ import { VideoUpload, uploadNewsVideo } from "@/components/admin/VideoUpload";
 import { CategoryPicker, type CategoryOption } from "@/components/admin/CategoryPicker";
 import { TagInput } from "@/components/admin/TagInput";
 import { NewsPreviewOverlay } from "@/components/admin/NewsPreviewOverlay";
+import { RichTextEditor } from "@/components/admin/RichTextEditor";
+import { richTextToPlain } from "@/lib/observatorio/plain-text";
 import { backToNewsList } from "@/components/admin/NewsListControls";
+import {
+  clearNewsDraft,
+  newsDraftKey,
+  parseNewsDraft,
+  readNewsDraftRaw,
+  writeNewsDraft,
+  type NewsDraft,
+} from "@/components/admin/news-draft";
 import type { NewsArticle } from "@/lib/observatorio/content";
 import { extractYoutubeId } from "@/lib/admin/schemas";
 import { adminFetch, readError } from "@/components/admin/admin-fetch";
@@ -177,18 +187,29 @@ async function uploadNewsImage(file: File) {
   return data.url;
 }
 
-export function NewsForm({
-  article,
-  today,
-  canFeature = false,
-  categories,
-  tagSuggestions,
-}: {
+type NewsFormProps = {
   article?: AdminNewsItem;
   today?: string;
   canFeature?: boolean;
   categories: CategoryOption[];
   tagSuggestions: string[];
+};
+
+function NewsFormBody({
+  article,
+  today,
+  canFeature = false,
+  categories,
+  tagSuggestions,
+  draft,
+  draftKey,
+  autosave,
+}: NewsFormProps & {
+  /** Borrador local recuperado: manda sobre los datos guardados de la noticia. */
+  draft?: NewsDraft | null;
+  draftKey: string;
+  /** Apagado mientras se decide qué hacer con un borrador anterior, para no pisarlo. */
+  autosave: boolean;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -199,25 +220,35 @@ export function NewsForm({
   const [reached, setReached] = useState(isEdit ? LAST_STEP : 0);
   const [issues, setIssues] = useState<StepIssue[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [dirty, setDirty] = useState(false);
+  // Un borrador recuperado todavía no está guardado en el servidor.
+  const [dirty, setDirty] = useState(Boolean(draft));
+  // Sube con cada cambio en los campos de texto, para programar el guardado local.
+  const [draftTick, setDraftTick] = useState(0);
   const [phase, setPhase] = useState<SavePhase>("idle");
   const [willPublish, setWillPublish] = useState(article?.published ?? true);
   // Categorías: las que llegan del servidor más las que se creen con «+» en este formulario.
   const [categoryOptions, setCategoryOptions] = useState(categories);
-  const [categoryId, setCategoryId] = useState(article?.categoryId ?? "");
-  const [tags, setTags] = useState<string[]>(article?.tags ?? []);
-  const [isReview, setIsReview] = useState(Boolean(article?.externalUrl));
-  const [externalSource, setExternalSource] = useState(article?.externalSource ?? "");
-  const [externalUrl, setExternalUrl] = useState(article?.externalUrl ?? "");
+  const [categoryId, setCategoryId] = useState(draft?.categoryId ?? article?.categoryId ?? "");
+  const [tags, setTags] = useState<string[]>(draft?.tags ?? article?.tags ?? []);
+  const [isReview, setIsReview] = useState(draft ? draft.isReview : Boolean(article?.externalUrl));
+  const [externalSource, setExternalSource] = useState(
+    draft?.externalSource ?? article?.externalSource ?? "",
+  );
+  const [externalUrl, setExternalUrl] = useState(draft?.externalUrl ?? article?.externalUrl ?? "");
   // Noticia armada con lo que hay en el formulario, para la vista previa (sin guardar).
   const [preview, setPreview] = useState<NewsArticle | null>(null);
-  const [points, setPoints] = useState<Point[]>(() => parsePoints(article?.pointsJson ?? "[]"));
-  const [mediaType, setMediaType] = useState<MediaType>(article?.mediaType ?? "IMAGE");
+  const [points, setPoints] = useState<Point[]>(() =>
+    draft?.points.length ? draft.points : parsePoints(article?.pointsJson ?? "[]"),
+  );
+  const [mediaType, setMediaType] = useState<MediaType>(
+    draft?.mediaType ?? article?.mediaType ?? "IMAGE",
+  );
   const [videoSource, setVideoSource] = useState<VideoSource>(
     article?.videoFileSrc ? "FILE" : "YOUTUBE",
   );
   const [youtubeInput, setYoutubeInput] = useState(
-    article?.videoYoutubeId ? `https://www.youtube.com/watch?v=${article.videoYoutubeId}` : "",
+    draft?.youtubeInput ??
+      (article?.videoYoutubeId ? `https://www.youtube.com/watch?v=${article.videoYoutubeId}` : ""),
   );
   const [photos, setPhotos] = useState<GalleryPhoto[]>(() =>
     photosFromImages(article?.images ?? []),
@@ -260,6 +291,47 @@ export function NewsForm({
     const element = formRef.current?.querySelector<HTMLInputElement>(`[name="${name}"]`);
     return element?.value ?? "";
   }
+
+  // Guardado local: 2 segundos después del último cambio, mientras haya algo sin guardar.
+  const saveDraft = useEffectEvent(() => {
+    writeNewsDraft(draftKey, {
+      savedAt: new Date().toISOString(),
+      title: fieldValue("title"),
+      subtitle: fieldValue("subtitle"),
+      publishedAt: fieldValue("publishedAt"),
+      lead: fieldValue("lead"),
+      pointsLabel: fieldValue("pointsLabel"),
+      points,
+      cta: fieldValue("cta"),
+      href: fieldValue("href"),
+      imageAlt: fieldValue("imageAlt"),
+      categoryId,
+      tags,
+      isReview,
+      externalSource,
+      externalUrl,
+      mediaType,
+      youtubeInput,
+    });
+  });
+  useEffect(() => {
+    if (!autosave || !dirty || pending) return;
+    const timer = setTimeout(saveDraft, 2000);
+    return () => clearTimeout(timer);
+  }, [
+    autosave,
+    dirty,
+    pending,
+    draftTick,
+    points,
+    categoryId,
+    tags,
+    isReview,
+    externalSource,
+    externalUrl,
+    mediaType,
+    youtubeInput,
+  ]);
 
   function validateStep(index: number): StepIssue[] {
     const found: StepIssue[] = [];
@@ -377,6 +449,8 @@ export function NewsForm({
       title,
       subtitle: fieldValue("subtitle") || "Subtítulo de la noticia",
       lead: fieldValue("lead") || undefined,
+      // El HTML sale del propio editor, que solo produce el formato permitido.
+      bodyHtml: fieldValue("lead") || undefined,
       pointsLabel: fieldValue("pointsLabel") || undefined,
       points: validPoints,
       cta: fieldValue("cta") || undefined,
@@ -557,6 +631,8 @@ export function NewsForm({
 
     const data = (await response.json()) as { article?: { id?: string } };
     setDirty(false);
+    // Ya está en el servidor: el borrador local sobra.
+    clearNewsDraft(draftKey);
     // De vuelta al listado, donde un aviso fijo confirma el resultado.
     const id = data.article?.id ?? article?.id ?? "";
     // Vuelve a la misma página y filtros del listado desde donde se entró.
@@ -571,6 +647,8 @@ export function NewsForm({
       ? "Publicar noticia"
       : "Guardar como borrador";
   const photoCount = photos.length;
+  // El cuerpo es HTML del editor: en el resumen se muestra solo el texto.
+  const leadSummary = richTextToPlain(summary.lead ?? "").trim();
 
   return (
     <div className="space-y-6 pb-36">
@@ -619,7 +697,10 @@ export function NewsForm({
         ref={formRef}
         className="space-y-6"
         onSubmit={onSubmit}
-        onChange={() => setDirty(true)}
+        onChange={() => {
+          setDirty(true);
+          setDraftTick((tick) => tick + 1);
+        }}
         noValidate
       >
         {/* Los pasos se ocultan en vez de desmontarse: así no se pierde lo escrito al ir y volver. */}
@@ -642,7 +723,7 @@ export function NewsForm({
                   id="title"
                   name="title"
                   required
-                  defaultValue={article?.title ?? ""}
+                  defaultValue={draft?.title ?? article?.title ?? ""}
                   maxLength={300}
                   aria-invalid={issues.some((issue) => issue.field === "title") || undefined}
                   className="h-12 text-base aria-invalid:border-red-500"
@@ -658,7 +739,7 @@ export function NewsForm({
                   id="subtitle"
                   name="subtitle"
                   required
-                  defaultValue={article?.subtitle ?? ""}
+                  defaultValue={draft?.subtitle ?? article?.subtitle ?? ""}
                   maxLength={600}
                   rows={3}
                   aria-invalid={issues.some((issue) => issue.field === "subtitle") || undefined}
@@ -675,7 +756,7 @@ export function NewsForm({
                   id="publishedAt"
                   name="publishedAt"
                   required
-                  defaultValue={toDateInput(article?.publishedAt, today)}
+                  defaultValue={toDateInput(draft?.publishedAt || article?.publishedAt, today)}
                 />
               </Field>
               <Field
@@ -761,15 +842,17 @@ export function NewsForm({
               <Field
                 id="lead"
                 label="Texto de la noticia (opcional)"
-                hint="Cuenta el hecho con más detalle. Para separar párrafos, deja una línea en blanco entre ellos."
+                hint="Cuenta el hecho con más detalle. Usa los botones para poner negrita, subtítulos, listas o enlaces. Puedes pegar desde Word sin problema."
                 className="md:col-span-2"
               >
-                <Textarea
+                <RichTextEditor
                   id="lead"
                   name="lead"
-                  defaultValue={article?.lead ?? ""}
-                  rows={8}
-                  className="text-base"
+                  defaultValue={draft?.lead ?? article?.lead ?? ""}
+                  onChange={() => {
+                    setDirty(true);
+                    setDraftTick((tick) => tick + 1);
+                  }}
                 />
               </Field>
             </CardContent>
@@ -798,7 +881,7 @@ export function NewsForm({
                   <Input
                     id="pointsLabel"
                     name="pointsLabel"
-                    defaultValue={article?.pointsLabel ?? ""}
+                    defaultValue={draft?.pointsLabel ?? article?.pointsLabel ?? ""}
                     maxLength={120}
                     placeholder="Título de la caja (opcional)"
                   />
@@ -856,14 +939,14 @@ export function NewsForm({
                   label="Botón con enlace: texto"
                   hint="Por ejemplo «Inscribirme a la videoconferencia». Si lo dejas vacío, no aparece ningún botón."
                 >
-                  <Input id="cta" name="cta" defaultValue={article?.cta ?? ""} maxLength={160} />
+                  <Input id="cta" name="cta" defaultValue={draft?.cta ?? article?.cta ?? ""} maxLength={160} />
                 </Field>
                 <Field
                   id="href"
                   label="Botón con enlace: dirección"
                   hint="La página a la que lleva el botón. Copia y pega la dirección completa (empieza con https://)."
                 >
-                  <Input id="href" name="href" defaultValue={article?.href ?? ""} placeholder="https://" />
+                  <Input id="href" name="href" defaultValue={draft?.href ?? article?.href ?? ""} placeholder="https://" />
                 </Field>
               </div>
             </CollapsibleContent>
@@ -960,7 +1043,7 @@ export function NewsForm({
                     <Input
                       id="imageAlt"
                       name="imageAlt"
-                      defaultValue={article?.imageAlt ?? ""}
+                      defaultValue={draft?.imageAlt ?? article?.imageAlt ?? ""}
                       maxLength={200}
                       placeholder="Describe en una frase lo que se ve"
                     />
@@ -1020,8 +1103,8 @@ export function NewsForm({
                   </SummaryRow>
                 ) : null}
                 <SummaryRow label="Texto de la noticia" onChange={() => goTo(0)}>
-                  {summary.lead?.trim()
-                    ? `${summary.lead.trim().slice(0, 160)}${summary.lead.trim().length > 160 ? "…" : ""}`
+                  {leadSummary
+                    ? `${leadSummary.slice(0, 160)}${leadSummary.length > 160 ? "…" : ""}`
                     : "Sin texto adicional"}
                 </SummaryRow>
                 <SummaryRow label="Fotos o video" onChange={() => goTo(1)}>
@@ -1197,6 +1280,96 @@ export function NewsForm({
           <Progress value={progress} aria-label="Avance" />
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+const noSubscription = () => () => {};
+
+function formatDraftTime(iso: string) {
+  return new Intl.DateTimeFormat("es-VE", {
+    day: "numeric",
+    month: "long",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
+
+/**
+ * Formulario de noticia con borrador local: si quedó algo escrito sin guardar (pestaña
+ * cerrada, corte de luz), ofrece recuperarlo antes de seguir.
+ */
+export function NewsForm({
+  userId,
+  updatedAt,
+  ...props
+}: NewsFormProps & {
+  userId: string;
+  /** Última vez que se guardó la noticia; un borrador más viejo se ignora. */
+  updatedAt?: string;
+}) {
+  const key = newsDraftKey(userId, props.article?.id);
+  const stored = useSyncExternalStore(noSubscription, () => readNewsDraftRaw(key), () => null);
+  // null: todavía no se decidió; luego, el borrador elegido (o ninguno) y la versión del formulario.
+  const [choice, setChoice] = useState<{ draft: NewsDraft | null; version: number } | null>(null);
+  const found = choice ? null : parseNewsDraft(stored, updatedAt);
+
+  function recover() {
+    setChoice({ draft: found, version: 1 });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function discard() {
+    clearNewsDraft(key);
+    setChoice({ draft: null, version: 0 });
+  }
+
+  return (
+    <div className="space-y-6">
+      {found ? (
+        <Alert variant="info" role="status" className="shadow-sm">
+          <Info aria-hidden="true" />
+          <AlertTitle>Tienes un texto sin guardar del {formatDraftTime(found.savedAt)}</AlertTitle>
+          <AlertDescription>
+            <p>
+              Se guardó solo en este computador mientras escribías
+              {found.title ? <> («{found.title}»)</> : null}. Las fotos, el video y el PDF hay que
+              volver a elegirlos.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <Button size="lg" onClick={recover}>
+                Recuperar lo que escribí
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="lg" variant="outline" className="bg-white/80">
+                    Descartar
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Descartar el texto sin guardar?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-base">
+                      Se borra lo que habías escrito y no se puede recuperar.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>No, conservarlo</AlertDialogCancel>
+                    <AlertDialogAction onClick={discard}>Sí, descartar</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      <NewsFormBody
+        key={choice?.version ?? 0}
+        {...props}
+        draft={choice?.draft}
+        draftKey={key}
+        autosave={!found}
+      />
     </div>
   );
 }

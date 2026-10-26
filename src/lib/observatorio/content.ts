@@ -40,6 +40,8 @@ export type NewsArticle = {
   title: string;
   subtitle: string;
   lead?: string;
+  /** Cuerpo listo para mostrar (HTML saneado). Si falta, se arma desde `lead` en texto plano. */
+  bodyHtml?: string;
   pointsLabel?: string;
   points: NewsPoint[];
   eventDetailsLabel?: string;

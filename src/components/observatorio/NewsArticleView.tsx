@@ -16,6 +16,7 @@ import { NewsEngagementBar } from "@/components/observatorio/NewsEngagementBar";
 import { NewsGallery } from "@/components/observatorio/NewsGallery";
 import { NewsVideoPlayer } from "@/components/observatorio/NewsVideoPlayer";
 import type { NewsArticle, NewsPoint } from "@/lib/observatorio/content";
+import { plainTextToHtml } from "@/lib/observatorio/plain-text";
 
 function PointsBlock({ label, points }: { label?: string; points: NewsPoint[] }) {
   return (
@@ -86,13 +87,11 @@ export function NewsArticleView({
   engagement?: boolean;
 }) {
   const category = categoryStyle(article.category);
-  const paragraphs = (article.lead ?? "")
-    .split(/\n\s*\n/)
-    .map((text) => text.trim())
-    .filter(Boolean);
+  // HTML ya saneado en el servidor (o el del editor, en la vista previa del formulario).
+  const bodyHtml = article.bodyHtml ?? plainTextToHtml(article.lead ?? "");
   const hasTags = Boolean(article.tags && article.tags.length > 0);
   const hasBody =
-    paragraphs.length > 0 ||
+    Boolean(bodyHtml) ||
     article.points.length > 0 ||
     Boolean(article.eventDetails) ||
     Boolean(article.cta && article.href);
@@ -172,12 +171,11 @@ export function NewsArticleView({
 
         {hasBody || hasTags ? (
         <div className="rounded-2xl border border-brand-border bg-white p-6 shadow-sm sm:p-10">
-          {paragraphs.length > 0 ? (
-            <div className="space-y-5 text-base leading-relaxed text-slate-700 sm:text-lg">
-              {paragraphs.map((text, i) => (
-                <p key={i}>{text}</p>
-              ))}
-            </div>
+          {bodyHtml ? (
+            <div
+              className="news-rich-text text-base leading-relaxed text-slate-700 sm:text-lg"
+              dangerouslySetInnerHTML={{ __html: bodyHtml }}
+            />
           ) : null}
 
           {article.points.length > 0 ? (

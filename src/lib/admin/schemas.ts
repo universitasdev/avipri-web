@@ -17,7 +17,8 @@ export const newsInputSchema = z.object({
   title: z.string().trim().min(8).max(300),
   subtitle: z.string().trim().min(8).max(600),
   // Cabe una nota completa (unas 3.000 palabras).
-  lead: z.string().trim().max(20000).optional().nullable(),
+  // Con formato es HTML, que ocupa más que el texto solo.
+  lead: z.string().trim().max(60000).optional().nullable(),
   pointsLabel: z.string().trim().max(120).optional().nullable(),
   points: z.array(newsPointSchema).max(12).default([]),
   eventDetailsLabel: z.string().trim().max(120).optional().nullable(),

@@ -6,6 +6,7 @@ import {
   safeNewsVideoPath,
   safePublicUrl,
 } from "@/lib/admin/safe";
+import { normalizeLead } from "@/lib/observatorio/rich-text";
 
 type NewsInput = z.infer<typeof newsInputSchema>;
 
@@ -113,7 +114,8 @@ export function buildNewsData(input: NewsInput, publishedAt: Date) {
       publishedAt,
       title: input.title,
       subtitle: input.subtitle,
-      lead: input.lead || null,
+      // HTML del editor saneado (o texto plano de noticias anteriores).
+      lead: normalizeLead(input.lead),
       pointsLabel: input.pointsLabel || null,
       pointsJson: JSON.stringify(input.points),
       eventDetailsLabel: input.eventDetailsLabel || null,

@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { NewsArticle, NewsCategory, NewsPoint, NewsVideo } from "@/lib/observatorio/content";
 import { LEAD_ARTICLE, SECONDARY_ARTICLES } from "@/lib/observatorio/content";
 import { getPrisma } from "@/lib/db";
+import { leadToHtml } from "@/lib/observatorio/rich-text";
 
 function parsePoints(raw: string | null | undefined): NewsPoint[] {
   if (!raw) return [];
@@ -89,6 +90,7 @@ export function mapNewsArticle(row: NewsRecord): NewsArticle {
     title: row.title,
     subtitle: row.subtitle,
     lead: row.lead ?? undefined,
+    bodyHtml: leadToHtml(row.lead),
     pointsLabel: row.pointsLabel ?? undefined,
     points: parsePoints(row.pointsJson),
     eventDetailsLabel: row.eventDetailsLabel ?? undefined,
