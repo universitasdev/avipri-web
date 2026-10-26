@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { ErrorAlert } from "@/components/admin/ui/error-alert";
 import { Button, buttonVariants } from "@/components/admin/ui/button";
 import { ResultBanner } from "@/components/admin/ui/result-banner";
@@ -31,6 +32,7 @@ export function ThermometerManager({
   const [error, setError] = useState<string | null>(null);
   // Fase recién publicada: se muestra en un aviso fijo hasta que la persona lo cierra.
   const [published, setPublished] = useState<string | null>(null);
+  const [invalid, setInvalid] = useState<"activeTitle" | "activeDescription" | null>(null);
 
   function selectStep(nextIndex: number) {
     setIndex(nextIndex);
@@ -40,9 +42,28 @@ export function ThermometerManager({
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    setPending(true);
     setError(null);
     setPublished(null);
+
+    // Avisos propios (toast) en vez de los globos del navegador.
+    const problem =
+      title.trim().length < 4
+        ? { field: "activeTitle" as const, title: "Escribe el título de la fase en curso" }
+        : description.trim().length < 8
+          ? {
+              field: "activeDescription" as const,
+              title: "Escribe la descripción de la barra informativa",
+              description: "Debe tener al menos 8 caracteres.",
+            }
+          : null;
+    if (problem) {
+      setInvalid(problem.field);
+      toast.error(problem.title, { description: problem.description });
+      document.getElementById(problem.field)?.focus();
+      return;
+    }
+
+    setPending(true);
 
     const response = await adminFetch("/api/admin/thermometer", {
       method: "PATCH",
@@ -102,7 +123,7 @@ export function ThermometerManager({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-6" onSubmit={onSubmit}>
+          <form className="space-y-6" onSubmit={onSubmit} noValidate>
             <RadioGroup
               aria-label="Fase en curso"
               value={String(index)}
@@ -139,8 +160,11 @@ export function ThermometerManager({
               <Input
                 id="activeTitle"
                 value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                required
+                onChange={(event) => {
+                  setTitle(event.target.value);
+                  setInvalid(null);
+                }}
+                aria-invalid={invalid === "activeTitle" || undefined}
                 maxLength={160}
               />
             </div>
@@ -149,8 +173,11 @@ export function ThermometerManager({
               <Textarea
                 id="activeDescription"
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                required
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                  setInvalid(null);
+                }}
+                aria-invalid={invalid === "activeDescription" || undefined}
                 maxLength={600}
                 rows={4}
               />
