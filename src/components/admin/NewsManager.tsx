@@ -183,6 +183,10 @@ export function NewsManager({
     if (estado !== "creada" && estado !== "actualizada" && estado !== "eliminada") return null;
     return { kind: estado, id: searchParams.get("id") ?? undefined };
   });
+  // La noticia del aviso llega solo mientras la dirección trae ?id=…; al limpiarla se perdería
+  // y un borrador se anunciaría como publicado. Se guarda la primera que llega.
+  const [outcomeSnapshot] = useState(outcomeArticle);
+  const outcomeData = outcomeSnapshot ?? outcomeArticle;
 
   useEffect(() => {
     rememberNewsList(newsListHref(filter));
@@ -212,7 +216,7 @@ export function NewsManager({
       {outcome ? (
         <OutcomeBanner
           outcome={outcome}
-          article={outcome.id && outcomeArticle?.id === outcome.id ? outcomeArticle : undefined}
+          article={outcome.id && outcomeData?.id === outcome.id ? outcomeData : undefined}
           onClose={() => setOutcome(null)}
         />
       ) : null}
