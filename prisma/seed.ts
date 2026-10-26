@@ -16,8 +16,9 @@ const NEWS_DATES: Record<string, string> = {
 function serializeArticle(article: NewsArticle, featured: boolean) {
   return {
     id: article.id,
-    category: article.category,
-    categoryLabel: article.categoryLabel,
+    slug: article.slug,
+    // Las categorías las crea la migración; aquí se enlazan por su slug.
+    category: { connect: { slug: article.category.slug } },
     publishedAt: new Date(NEWS_DATES[article.id] ?? "2026-09-01T12:00:00.000Z"),
     title: article.title,
     subtitle: article.subtitle,
@@ -28,11 +29,19 @@ function serializeArticle(article: NewsArticle, featured: boolean) {
     eventDetailsJson: article.eventDetails ? JSON.stringify(article.eventDetails) : null,
     cta: article.cta ?? null,
     href: article.href ?? null,
-    imageSrc: article.image?.src ?? null,
     imageAlt: article.image?.alt ?? null,
     featured,
     published: true,
   };
+}
+
+const STATIC_IMAGES = new Map(
+  [LEAD_ARTICLE, ...SECONDARY_ARTICLES].map((article) => [article.id, article.image]),
+);
+
+function imagesOf(id: string) {
+  const image = STATIC_IMAGES.get(id);
+  return image ? [{ src: image.src, alt: image.alt, position: 0 }] : [];
 }
 
 async function main() {
@@ -47,16 +56,17 @@ async function main() {
   const passwordHash = await hash(password, 12);
   await prisma.user.upsert({
     where: { email },
-    update: { name, passwordHash },
-    create: { email, name, passwordHash },
+    update: { name, passwordHash, role: "ADMIN", active: true },
+    create: { email, name, passwordHash, role: "ADMIN" },
   });
 
   const articles = [serializeArticle(LEAD_ARTICLE, true), ...SECONDARY_ARTICLES.map((item) => serializeArticle(item, false))];
   for (const article of articles) {
     await prisma.newsArticle.upsert({
       where: { id: article.id },
-      update: article,
-      create: article,
+      // Las fotos se recrean para que el seed deje siempre la misma galería.
+      update: { ...article, images: { deleteMany: {}, create: imagesOf(article.id) } },
+      create: { ...article, images: { create: imagesOf(article.id) } },
     });
   }
 

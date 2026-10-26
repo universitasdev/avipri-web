@@ -3,7 +3,8 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert } from "@/components/admin/ui/alert";
+import { toast } from "sonner";
+import { ErrorAlert } from "@/components/admin/ui/error-alert";
 import { Button, buttonVariants } from "@/components/admin/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/admin/ui/card";
 import { DatePicker } from "@/components/admin/ui/date-picker";
@@ -24,12 +25,39 @@ export function VideoForm({ video }: { video?: AdminVideoItem }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const isEdit = Boolean(video?.id);
+  const [invalid, setInvalid] = useState<"youtube" | "title" | "body" | null>(null);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPending(true);
     setError(null);
     const form = new FormData(event.currentTarget);
+
+    // Avisos propios (toast) en vez de los globos del navegador.
+    const value = (name: string) => String(form.get(name) ?? "").trim();
+    const problem =
+      value("youtube").length < 11
+        ? {
+            field: "youtube" as const,
+            title: "Pega el enlace del video de YouTube",
+            description: "Por ejemplo: https://www.youtube.com/watch?v=…",
+          }
+        : value("title").length < 8
+          ? { field: "title" as const, title: "Escribe el título", description: "Debe tener al menos 8 caracteres." }
+          : value("body").length < 8
+            ? {
+                field: "body" as const,
+                title: "Escribe la descripción",
+                description: "Debe tener al menos 8 caracteres.",
+              }
+            : null;
+    if (problem) {
+      setInvalid(problem.field);
+      toast.error(problem.title, { description: problem.description });
+      document.getElementById(problem.field)?.focus();
+      return;
+    }
+
+    setPending(true);
     const payload = {
       youtube: String(form.get("youtube") ?? ""),
       badge: String(form.get("badge") ?? "Aula Ciudad"),
@@ -81,14 +109,14 @@ export function VideoForm({ video }: { video?: AdminVideoItem }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4" onSubmit={onSubmit}>
-            {error ? <Alert>{error}</Alert> : null}
+          <form className="space-y-4" onSubmit={onSubmit} onChange={() => setInvalid(null)} noValidate>
+            {error ? <ErrorAlert title="No se pudo guardar el video">{error}</ErrorAlert> : null}
             <div className="space-y-2">
               <Label htmlFor="youtube">Enlace o ID de YouTube</Label>
               <Input
                 id="youtube"
                 name="youtube"
-                required
+                aria-invalid={invalid === "youtube" || undefined}
                 defaultValue={video?.youtubeId ?? ""}
                 placeholder="https://www.youtube.com/watch?v=..."
               />
@@ -96,7 +124,13 @@ export function VideoForm({ video }: { video?: AdminVideoItem }) {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="title">Título</Label>
-                <Input id="title" name="title" required defaultValue={video?.title ?? ""} maxLength={200} />
+                <Input
+                  id="title"
+                  name="title"
+                  aria-invalid={invalid === "title" || undefined}
+                  defaultValue={video?.title ?? ""}
+                  maxLength={200}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="badge">Etiqueta</Label>
@@ -105,7 +139,13 @@ export function VideoForm({ video }: { video?: AdminVideoItem }) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="body">Descripción</Label>
-              <Textarea id="body" name="body" required defaultValue={video?.body ?? ""} maxLength={2000} />
+              <Textarea
+                id="body"
+                name="body"
+                aria-invalid={invalid === "body" || undefined}
+                defaultValue={video?.body ?? ""}
+                maxLength={2000}
+              />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">

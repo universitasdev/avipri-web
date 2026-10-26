@@ -1,30 +1,73 @@
-export type NewsCategoryId = "institucional" | "doctrina" | "vuf" | "aula";
+/** Categoría de una noticia: una sola por noticia; la crea el propio equipo editorial. */
+export type NewsCategory = {
+  slug: string;
+  name: string;
+  /** Clave de la paleta de marca (ver categoryStyles). */
+  color: string;
+  icon?: string | null;
+};
+
+/** Etiqueta libre: varias por noticia, sin jerarquía. */
+export type NewsTagRef = { slug: string; name: string };
+
+/** Las 4 categorías originales, para el respaldo estático cuando no hay base de datos. */
+export const LEGACY_CATEGORIES = {
+  institucional: { slug: "analisis-institucional", name: "Análisis Institucional", color: "navy", icon: "building" },
+  doctrina: { slug: "doctrina-legal", name: "Doctrina Legal", color: "terracotta", icon: "book" },
+  vuf: { slug: "retiros-y-vuf", name: "Retiros y VUF", color: "territorial", icon: "ruler" },
+  aula: { slug: "aula-ciudad", name: "Aula Ciudad", color: "orange", icon: "graduation" },
+} satisfies Record<string, NewsCategory>;
 
 export type NewsPoint = {
   title: string;
   body: string;
 };
 
+/** Lo que ven los lectores debajo de la noticia, como en PDUL YA. */
+export type NewsStats = { views: number; likes: number; dislikes: number };
+
 export type NewsArticle = {
   id: string;
-  category: NewsCategoryId;
+  slug: string;
+  category: NewsCategory;
+  /** Nombre de la categoría (atajo de category.name). */
   categoryLabel: string;
+  tags?: NewsTagRef[];
+  /** Reseña de un artículo publicado en otra revista. */
+  external?: { source: string; url: string };
   date: string;
   dateShort: string;
   title: string;
   subtitle: string;
   lead?: string;
+  /** Cuerpo listo para mostrar (HTML saneado). Si falta, se arma desde `lead` en texto plano. */
+  bodyHtml?: string;
   pointsLabel?: string;
   points: NewsPoint[];
   eventDetailsLabel?: string;
   eventDetails?: NewsPoint[];
   cta?: string;
   href?: string;
-  image?: {
-    src: string;
-    alt: string;
-  };
+  /** Portada: la primera de `images`. */
+  image?: NewsImage;
+  /** Fotos en orden; con 2 o más es galería. */
+  images?: NewsImage[];
+  video?: NewsVideo;
+  attachment?: NewsAttachment;
+  featured?: boolean;
+  /** Fecha en ISO para <time dateTime>. */
+  isoDate?: string;
+  /** Solo en noticias de la base (el respaldo estático no las tiene). */
+  stats?: NewsStats;
 };
+
+export type NewsImage = { src: string; alt: string };
+
+export type NewsAttachment = { src: string; name: string; bytes: number };
+
+export type NewsVideo =
+  | { kind: "youtube"; youtubeId: string; title: string; poster: string }
+  | { kind: "file"; src: string; title: string; poster?: string };
 
 export const OBSERVATORIO_HERO = {
   badge: "Órgano de difusión y doctrina técnica",
@@ -35,7 +78,8 @@ export const OBSERVATORIO_HERO = {
 
 export const LEAD_ARTICLE: NewsArticle = {
   id: "decreto-inicio-pdul",
-  category: "institucional",
+  slug: "decreto-inicio-pdul",
+  category: LEGACY_CATEGORIES.institucional,
   categoryLabel: "Análisis Institucional",
   date: "14 de septiembre de 2026",
   dateShort: "14 Sep 2026",
@@ -67,7 +111,8 @@ export const LEAD_ARTICLE: NewsArticle = {
 export const SECONDARY_ARTICLES: NewsArticle[] = [
   {
     id: "sentencia-928-tsj",
-    category: "doctrina",
+    slug: "sentencia-928-tsj",
+    category: LEGACY_CATEGORIES.doctrina,
     categoryLabel: "Doctrina Legal",
     date: "8 de septiembre de 2026",
     dateShort: "8 Sep 2026",
@@ -93,7 +138,8 @@ export const SECONDARY_ARTICLES: NewsArticle[] = [
   },
   {
     id: "microzonificacion-sismica",
-    category: "vuf",
+    slug: "microzonificacion-sismica",
+    category: LEGACY_CATEGORIES.vuf,
     categoryLabel: "Retiros y VUF",
     date: "4 de septiembre de 2026",
     dateShort: "4 Sep 2026",
@@ -119,7 +165,8 @@ export const SECONDARY_ARTICLES: NewsArticle[] = [
   },
   {
     id: "antifragilidad-aula-ciudad",
-    category: "aula",
+    slug: "antifragilidad-aula-ciudad",
+    category: LEGACY_CATEGORIES.aula,
     categoryLabel: "Aula Ciudad",
     date: "12 de septiembre de 2026",
     dateShort: "12 Sep 2026",

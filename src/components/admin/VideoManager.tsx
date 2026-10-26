@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Alert } from "@/components/admin/ui/alert";
+import { ErrorAlert } from "@/components/admin/ui/error-alert";
 import { Badge } from "@/components/admin/ui/badge";
 import { Button, buttonVariants } from "@/components/admin/ui/button";
 import { Card } from "@/components/admin/ui/card";
@@ -51,7 +51,7 @@ export function VideoManager({ videos }: { videos: AdminVideoItem[] }) {
         </Link>
       </div>
 
-      {error ? <Alert>{error}</Alert> : null}
+      {error ? <ErrorAlert title="No se pudo completar">{error}</ErrorAlert> : null}
 
       <Card>
         <Table>

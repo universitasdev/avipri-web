@@ -3,9 +3,7 @@
 import { useRef, useState } from "react";
 import { ImagePlus } from "lucide-react";
 import { Button } from "@/components/admin/ui/button";
-
-const MAX_BYTES = 3 * 1024 * 1024;
-const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
+import { MIN_RECOMMENDED_WIDTH, prepareImage } from "@/components/admin/image-resize";
 
 export function ImageUpload({ currentSrc }: { currentSrc?: string | null }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -43,21 +41,26 @@ export function ImageUpload({ currentSrc }: { currentSrc?: string | null }) {
         name="imageFile"
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
-        onChange={(event) => {
-          const next = event.target.files?.[0];
-          if (!next) return;
-          if (next.type && !ALLOWED.includes(next.type)) {
-            setLocalError("Solo se admiten JPG, PNG o WebP.");
-            event.target.value = "";
-            return;
+        onChange={async (event) => {
+          const input = event.target;
+          const original = input.files?.[0];
+          if (!original) return;
+          try {
+            // Se achica y comprime en el navegador; el campo queda con la versión lista para subir.
+            const prepared = await prepareImage(original);
+            const transfer = new DataTransfer();
+            transfer.items.add(prepared.file);
+            input.files = transfer.files;
+            setLocalError(
+              prepared.small
+                ? `Foto pequeña (menos de ${MIN_RECOMMENDED_WIDTH} px de ancho): puede verse borrosa.`
+                : null,
+            );
+            applyFile(prepared.file);
+          } catch (error) {
+            input.value = "";
+            setLocalError(error instanceof Error ? error.message : "No se pudo usar esa foto.");
           }
-          if (next.size > MAX_BYTES) {
-            setLocalError("La imagen no puede superar 3 MB.");
-            event.target.value = "";
-            return;
-          }
-          setLocalError(null);
-          applyFile(next);
         }}
       />
       <div className="overflow-hidden rounded-lg border border-brand-border bg-slate-50">
@@ -71,13 +74,14 @@ export function ImageUpload({ currentSrc }: { currentSrc?: string | null }) {
           </div>
         )}
       </div>
-      {localError ? <p className="text-xs text-red-700">{localError}</p> : null}
+      {localError ? <p className="text-sm text-red-700">{localError}</p> : null}
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+        <Button variant="outline" size="lg" onClick={() => inputRef.current?.click()}>
           {preview ? "Cambiar imagen" : "Subir imagen"}
         </Button>
         {preview ? (
-          <Button variant="ghost" size="sm" className="text-red-700" onClick={clearImage}>
+          <Button variant="ghost"
+            size="lg" className="text-red-700" onClick={clearImage}>
             Quitar
           </Button>
         ) : null}

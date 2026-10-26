@@ -7,13 +7,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  ADMIN
+  EDITOR
+}
+
+enum NewsMediaType {
+  IMAGE
+  VIDEO
+}
+
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  passwordHash  String
-  name          String
-  createdAt     DateTime       @default(now())
-  refreshTokens RefreshToken[]
+  id                 String         @id @default(cuid())
+  email              String         @unique
+  passwordHash       String
+  name               String
+  role               Role           @default(EDITOR)
+  active             Boolean        @default(true)
+  mustChangePassword Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @default(now()) @updatedAt
+  refreshTokens      RefreshToken[]
+  newsCreated        NewsArticle[]  @relation("NewsCreatedBy")
+  newsUpdated        NewsArticle[]  @relation("NewsUpdatedBy")
 }
 
 model RefreshToken {
@@ -35,8 +51,13 @@ model LoginAttempt {
 
 model NewsArticle {
   id                 String   @id @default(cuid())
-  category           String
-  categoryLabel      String
+  // Dirección pública de la noticia: /observatorio/<slug>. No cambia al editar el título.
+  slug               String   @unique
+  // Una sola categoría por noticia; las crea el propio equipo editorial.
+  categoryId         String
+  category           Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  // Etiquetas libres, varias por noticia y sin jerarquía.
+  tags               NewsTag[]
   publishedAt        DateTime
   title              String
   subtitle           String
@@ -47,12 +68,98 @@ model NewsArticle {
   eventDetailsJson   String?
   cta                String?
   href               String?
+  mediaType          NewsMediaType @default(IMAGE)
+  // Con mediaType IMAGE las fotos van en `images` (1 = foto, 2 o más = galería).
+  images             NewsImage[]
+  // Portada opcional del video (solo con mediaType VIDEO).
   imageSrc           String?
+  // Descripción del medio principal.
   imageAlt           String?
+  // Con mediaType VIDEO se usa uno de los dos: un video de YouTube o un archivo subido.
+  videoYoutubeId     String?
+  videoFileSrc       String?
+  // PDF adjunto opcional, en cualquier tipo de noticia.
+  attachmentSrc      String?
+  attachmentName     String?
+  attachmentBytes    Int?
+  // Reseña de un artículo publicado en otra revista (por ejemplo, RDU): se enlaza a su web.
+  externalSource     String?
+  externalUrl        String?
   featured           Boolean  @default(false)
   published          Boolean  @default(true)
+  // Lo que ven los lectores debajo de la noticia, como en PDUL YA.
+  viewCount          Int      @default(0)
+  likeCount          Int      @default(0)
+  dislikeCount       Int      @default(0)
+  reactions          NewsReaction[]
+  createdById        String?
+  createdBy          User?    @relation("NewsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById        String?
+  updatedBy          User?    @relation("NewsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+  @@index([createdById])
+  @@index([categoryId])
+}
+
+enum NewsReactionValue {
+  LIKE
+  DISLIKE
+}
+
+// "Me gusta" / "No me gusta" de un lector. Un voto por noticia y navegador (cookie anónima).
+model NewsReaction {
+  articleId String
+  article   NewsArticle       @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  visitorId String
+  value     NewsReactionValue
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@id([articleId, visitorId])
+}
+
+model Category {
+  id        String        @id @default(cuid())
+  slug      String        @unique
+  name      String        @unique
+  // Clave de la paleta de marca (navy, terracotta, territorial, orange, …).
+  color     String
+  // Ícono propio de las categorías originales; las nuevas usan uno genérico.
+  icon      String?
+  createdAt DateTime      @default(now())
+  news      NewsArticle[]
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  name      String
+  createdAt DateTime  @default(now())
+  news      NewsTag[]
+}
+
+model NewsTag {
+  articleId String
+  article   NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@index([tagId])
+}
+
+model NewsImage {
+  id        String      @id @default(cuid())
+  articleId String
+  article   NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  src       String
+  alt       String?
+  // Orden en la galería; la posición 0 es la portada.
+  position  Int
+
+  @@index([articleId, position])
 }
 
 model Video {

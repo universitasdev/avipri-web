@@ -1,0 +1,12 @@
+[
+  {
+    "origin": [
+      "https://pdul.online",
+      "https://www.pdul.online",
+      "https://REEMPLAZAR-NOMBRE-DEL-SITIO.netlify.app"
+    ],
+    "method": ["PUT", "GET", "HEAD"],
+    "responseHeader": ["Content-Type", "x-goog-content-length-range"],
+    "maxAgeSeconds": 3600
+  }
+]
